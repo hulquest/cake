@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/netapp/cake/pkg/cluster-engine/provisioner/capv"
+	"github.com/netapp/cake/pkg/engines/capv"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

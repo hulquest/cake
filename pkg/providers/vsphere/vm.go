@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/netapp/cake/pkg/platform/vsphere/cloudinit"
+	"github.com/netapp/cake/pkg/providers/vsphere/cloudinit"
 	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"

@@ -3,14 +3,38 @@ package vsphere
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 )
 
-// CreateVMFolderRootLevel creates a VM folder at the root level
-func (r *Resource) CreateVMFolderRootLevel(folderName string) (*object.Folder, error) {
+// CreateVMFolder creates all folders in a path like "one/two/three"
+func (r *Resource) CreateVMFolder(folderPath string) ([]*object.Folder, error) {
+	folders := strings.Split(folderPath, "/")
+	var desiredFolders []*object.Folder
+
+	for f := 0; f < len(folders); f++ {
+		if f == 0 {
+			base, err := r.createVMFolderRootLevel(folders[f])
+			if err != nil {
+				return nil, err
+			}
+			desiredFolders = append(desiredFolders, base)
+		} else {
+			nested, err := r.createVMFolderNestedLevel(desiredFolders[f-1], folders[f])
+			if err != nil {
+				return nil, err
+			}
+			desiredFolders = append(desiredFolders, nested)
+		}
+	}
+	return desiredFolders, nil
+}
+
+// createVMFolderRootLevel creates a VM folder at the root level
+func (r *Resource) createVMFolderRootLevel(folderName string) (*object.Folder, error) {
 	d := time.Now().Add(2 * time.Minute)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
@@ -41,8 +65,8 @@ func (r *Resource) CreateVMFolderRootLevel(folderName string) (*object.Folder, e
 	return desiredFolder, nil
 }
 
-// CreateVMFolderNestedLevel creates a VM folder inside of a root level folder
-func (r *Resource) CreateVMFolderNestedLevel(rootFolder *object.Folder, folderName string) (*object.Folder, error) {
+// createVMFolderNestedLevel creates a VM folder inside of a root level folder
+func (r *Resource) createVMFolderNestedLevel(rootFolder *object.Folder, folderName string) (*object.Folder, error) {
 	d := time.Now().Add(2 * time.Minute)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
