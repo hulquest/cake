@@ -38,7 +38,7 @@ func (r *Resource) DeployOVATemplates(templatePaths ...string) (map[string]*obje
 			if err != nil {
 				return err
 			}
-			result[strings.TrimSuffix(path.Base(template), ".ova")] = r
+			result[template] = r
 			return nil
 		})
 	}
