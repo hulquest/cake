@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"github.com/netapp/cake/pkg/config/types"
 	"github.com/netapp/cake/pkg/providers"
 	"github.com/netapp/cake/pkg/providers/vsphere"
 )
@@ -8,9 +9,9 @@ import (
 // Client bootstrapping
 type Client struct {
 	vsphere.Resource
-	Config interface{}
+	Config           types.ConfigSpec
 	createdResources []interface{}
-	events chan interface{}
+	events           chan interface{}
 }
 
 // NewBootstrapper creates a new Bootstrap interface
@@ -18,7 +19,7 @@ func NewBootstrapper(c *Client) providers.Bootstrap {
 	bc := new(Client)
 	bc = c
 	bc.events = make(chan interface{})
-	
+
 	return bc
 }
 

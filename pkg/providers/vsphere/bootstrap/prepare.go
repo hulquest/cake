@@ -2,11 +2,6 @@ package bootstrap
 
 // Prepare the environment for bootstrapping
 func (c *Client) Prepare() error {
-	bootstrapFolder, err := c.CreateVMFolder("cake/bootstrap")
-	if err != nil {
-		return err
-	}
-	c.createdResources = append(c.createdResources, bootstrapFolder)
 
 	templateFolder, err := c.CreateVMFolder("cake/templates")
 	if err != nil {
@@ -26,9 +21,15 @@ func (c *Client) Prepare() error {
 	}
 	c.createdResources = append(c.createdResources, mgmtFolder)
 
+	bootstrapFolder, err := c.CreateVMFolder("cake/bootstrap")
+	if err != nil {
+		return err
+	}
+	c.createdResources = append(c.createdResources, bootstrapFolder)
+
+	c.Folder = bootstrapFolder["bootstrap"]
 	templateName := "ubuntu-1804-kube-v1.17.3-TEST"
-	templateOVA := "https://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
-	template, err := c.DeployOVATemplate(templateName, templateOVA)
+	template, err := c.DeployOVATemplate(templateName, c.Config.OptionalConfiguration.OVA.NodeTemplate)
 	if err != nil {
 		return err
 	}

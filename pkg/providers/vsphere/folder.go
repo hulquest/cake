@@ -11,9 +11,9 @@ import (
 )
 
 // CreateVMFolder creates all folders in a path like "one/two/three"
-func (r *Resource) CreateVMFolder(folderPath string) ([]*object.Folder, error) {
+func (r *Resource) CreateVMFolder(folderPath string) (map[string]*object.Folder, error) {
 	folders := strings.Split(folderPath, "/")
-	var desiredFolders []*object.Folder
+	desiredFolders := make(map[string]*object.Folder)
 
 	for f := 0; f < len(folders); f++ {
 		if f == 0 {
@@ -21,13 +21,13 @@ func (r *Resource) CreateVMFolder(folderPath string) ([]*object.Folder, error) {
 			if err != nil {
 				return nil, err
 			}
-			desiredFolders = append(desiredFolders, base)
+			desiredFolders[folders[f]] = base
 		} else {
-			nested, err := r.createVMFolderNestedLevel(desiredFolders[f-1], folders[f])
+			nested, err := r.createVMFolderNestedLevel(desiredFolders[folders[f-1]], folders[f])
 			if err != nil {
 				return nil, err
 			}
-			desiredFolders = append(desiredFolders, nested)
+			desiredFolders[folders[f]] = nested
 		}
 	}
 	return desiredFolders, nil
