@@ -11,7 +11,13 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+// CloneTemplate creates a VM from a template
 func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
+
+	vmFound, _ := r.SessionManager.GetVM(r.Datacenter, name)
+	if vmFound != nil {
+		return vmFound, nil
+	}
 
 	// give whole clone process a 10 minute timeout
 	d := time.Now().Add(10 * time.Minute)
@@ -99,6 +105,7 @@ func (r *Resource) CloneTemplate(template *object.VirtualMachine, name string, b
 	return vm, nil
 }
 
+// DeleteVM deletes a VM
 func DeleteVM(vm *object.VirtualMachine) error {
 	ctx := context.TODO()
 

@@ -13,6 +13,7 @@ import (
 
 	pkgerrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -24,9 +25,34 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// DeployOVATemplate uploads ova and makes it a template
-func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object.VirtualMachine, error) {
+// DeployOVATemplates deploys multiple OVAs asynchronously
+func (r *Resource) DeployOVATemplates(templatePaths ...string) (map[string]*object.VirtualMachine, error) {
+	numOVAs := len(templatePaths)
+	result := make(map[string]*object.VirtualMachine, numOVAs)
+
+	var g errgroup.Group
+	for _, template := range templatePaths {
+		template := template
+		g.Go(func() error {
+			r, err := r.deployOVATemplate(template)
+			if err != nil {
+				return err
+			}
+			result[strings.TrimSuffix(path.Base(template), ".ova")] = r
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return result, err
+	}
+	return result, nil
+
+}
+
+// deployOVATemplate uploads ova and makes it a template
+func (r *Resource) deployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
 	ctx := context.TODO()
+	templateName := strings.TrimSuffix(path.Base(templatePath), ".ova")
 
 	vSphereClient, err := r.SessionManager.GetClient()
 	if err != nil {
@@ -320,5 +346,3 @@ func removeNICs(ctx context.Context, vm *object.VirtualMachine) error {
 
 	return nil
 }
-
-
