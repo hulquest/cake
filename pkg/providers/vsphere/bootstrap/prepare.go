@@ -1,5 +1,10 @@
 package bootstrap
 
+import (
+	"path"
+	"strings"
+)
+
 // Prepare the environment for bootstrapping
 func (c *Client) Prepare() error {
 
@@ -7,28 +12,33 @@ func (c *Client) Prepare() error {
 	if err != nil {
 		return err
 	}
-	c.createdResources = append(c.createdResources, templateFolder)
 
 	workloadFolder, err := c.CreateVMFolder("cake/workload")
 	if err != nil {
 		return err
 	}
-	c.createdResources = append(c.createdResources, workloadFolder)
 
 	mgmtFolder, err := c.CreateVMFolder("cake/mgmt")
 	if err != nil {
 		return err
 	}
-	c.createdResources = append(c.createdResources, mgmtFolder)
 
 	bootstrapFolder, err := c.CreateVMFolder("cake/bootstrap")
 	if err != nil {
 		return err
 	}
-	c.createdResources = append(c.createdResources, bootstrapFolder)
+	c.createdResources = append(
+		c.createdResources,
+		templateFolder["cake"],
+		templateFolder["templates"],
+		workloadFolder["workload"],
+		mgmtFolder["mgmt"],
+		bootstrapFolder["bootstrap"],
+	)
 
 	c.Folder = bootstrapFolder["bootstrap"]
-	templateName := "ubuntu-1804-kube-v1.17.3-TEST"
+	//templateName := "ubuntu-1804-kube-v1.17.3-TEST"
+	templateName := strings.TrimSuffix(path.Base(c.Config.OptionalConfiguration.OVA.NodeTemplate), ".ova") + "-TEST"
 	template, err := c.DeployOVATemplate(templateName, c.Config.OptionalConfiguration.OVA.NodeTemplate)
 	if err != nil {
 		return err
