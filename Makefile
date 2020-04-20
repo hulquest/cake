@@ -36,3 +36,7 @@ clean:  ## Clean up all the go modules
 .PHONY: tidy
 tidy:  ## Clean up all go modules
 	go mod tidy
+
+.PHONY: verify-no-efiles
+verify-no-efiles:  ## Clean up all go modules
+	hack/check_for_efiles.sh

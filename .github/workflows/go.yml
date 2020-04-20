@@ -30,5 +30,8 @@ jobs:
             dep ensure
         fi
 
+    - name: CheckEfiles
+      run: make verify-no-efiles
+
     - name: Build
       run: go build -v .
