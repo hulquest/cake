@@ -11,11 +11,12 @@ type Bootstrap interface {
 
 // ConfigSpec holds information needed to provision a K8s management cluster
 type ConfigSpec struct {
-	Provider string `yaml:"Provider" json:"provider"`
-	SSH      SSH    `yaml:"SSH" json:"ssh"`
-	LogFile  string `yaml:"LogFile,omitempty" json:"logfile,omitempty"`
-	Addons   Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
-	Cluster  `yaml:",inline" json:",inline" mapstructure:",squash"`
+	Provider        string `yaml:"Provider" json:"provider"`
+	ProviderContext Bootstrap
+	SSH             SSH    `yaml:"SSH" json:"ssh"`
+	LogFile         string `yaml:"LogFile,omitempty" json:"logfile,omitempty"`
+	Addons          Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
+	Cluster         `yaml:",inline" json:",inline" mapstructure:",squash"`
 }
 
 // Cluster specifies the details about the management cluster

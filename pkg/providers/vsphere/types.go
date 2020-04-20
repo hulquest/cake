@@ -2,7 +2,6 @@ package vsphere
 
 import (
 	"github.com/vmware/govmomi/object"
-	"github.com/netapp/cake/pkg/providers"
 )
 
 // Resource holds information about the vSphere environment being registered
@@ -22,7 +21,6 @@ type Infrastructure struct {
 
 // ConfigSpec holds information needed to provision a K8s management cluster with the vsphere provider
 type ConfigSpec struct {
-	providers.ConfigSpec `yaml:",inline" mapstructure:",squash"`
 	ProviderVsphere ProviderVsphere `yaml:"ProviderVsphere,omitempty" json:"providervsphere,omitempty"`
 }
 
