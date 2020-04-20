@@ -13,7 +13,6 @@ import (
 
 	pkgerrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -26,9 +25,8 @@ import (
 )
 
 // DeployOVATemplate uploads ova and makes it a template
-func (r *Resource) DeployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
+func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object.VirtualMachine, error) {
 	ctx := context.TODO()
-	templateName := strings.TrimSuffix(path.Base(templatePath), ".ova")
 
 	vSphereClient, err := r.SessionManager.GetClient()
 	if err != nil {
