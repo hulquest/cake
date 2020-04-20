@@ -55,7 +55,7 @@ type Solidfire struct {
 }
 
 type Observability struct {
-	Enable          bool   `yaml:"Enabled"`
+	Enable          bool   `yaml:"Enable"`
 	ArchiveLocation string `yaml:"ArchiveLocation"`
 }
 

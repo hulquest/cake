@@ -73,6 +73,7 @@ func serveProgress(logfile string, kubeconfig string) {
 }
 
 func runCapvProvisioner(controlPlaneMachineCount, workerMachineCount int) {
+	// TODO dont log.Fatal, need the http endpoints to stay alive
 
 	clusterName := "capv-mgmt-cluster"
 

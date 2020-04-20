@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -192,4 +193,32 @@ func DeleteVM(vm *object.VirtualMachine) error {
 	}
 
 	return nil
+}
+
+// GetVMIP returns the first IPv4 IP on the first NIC
+func GetVMIP(vm *object.VirtualMachine) (string, error) {
+	const (
+		timeout = 10 * time.Minute
+		nic     = "ethernet-0"
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	log.Debugf("Waiting for vm to receive ip on interface %s, timeout %s", nic, timeout)
+	macToIPMap, err := vm.WaitForNetIP(ctx, true, nic)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("timed out after %s while waiting for ip", timeout)
+		}
+		return "", fmt.Errorf("failed waiting for IP, %v", err)
+	}
+
+	for _, ips := range macToIPMap {
+		for _, ip := range ips {
+			return ip, nil
+		}
+	}
+
+	return "", errors.New("could not find IP address of VM Network NIC")
 }
