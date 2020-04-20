@@ -15,21 +15,19 @@ func (r *Resource) CreateVMFolder(folderPath string) ([]*object.Folder, error) {
 	folders := strings.Split(folderPath, "/")
 	var desiredFolders []*object.Folder
 
-	for f := 0; f < len(folders); f++ {
-		if f == 0 {
-			base, err := r.createVMFolderRootLevel(folders[f])
-			if err != nil {
-				return nil, err
-			}
-			desiredFolders = append(desiredFolders, base)
-		} else {
-			nested, err := r.createVMFolderNestedLevel(desiredFolders[f-1], folders[f])
-			if err != nil {
-				return nil, err
-			}
-			desiredFolders = append(desiredFolders, nested)
-		}
+	base, err := r.createVMFolderRootLevel(folders[0])
+	if err != nil {
+		return nil, err
 	}
+	desiredFolders = append(desiredFolders, base)
+	for f := 1; f < len(folders); f++ {
+		nested, err := r.createVMFolderNestedLevel(desiredFolders[f-1], folders[f])
+		if err != nil {
+			return nil, err
+		}
+		desiredFolders = append(desiredFolders, nested)
+	}
+
 	return desiredFolders, nil
 }
 
