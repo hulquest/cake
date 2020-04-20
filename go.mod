@@ -3,6 +3,8 @@ module github.com/netapp/cake
 go 1.14
 
 require (
+	github.com/gookit/color v1.2.4
+	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.5.0
