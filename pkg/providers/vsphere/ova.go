@@ -25,32 +25,8 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// DeployOVATemplates deploys multiple OVAs asynchronously
-func (r *Resource) DeployOVATemplates(templatePaths ...string) (map[string]*object.VirtualMachine, error) {
-	numOVAs := len(templatePaths)
-	result := make(map[string]*object.VirtualMachine, numOVAs)
-
-	var g errgroup.Group
-	for _, template := range templatePaths {
-		template := template
-		g.Go(func() error {
-			r, err := r.deployOVATemplate(template)
-			if err != nil {
-				return err
-			}
-			result[template] = r
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return result, err
-	}
-	return result, nil
-
-}
-
-// deployOVATemplate uploads ova and makes it a template
-func (r *Resource) deployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
+// DeployOVATemplate uploads ova and makes it a template
+func (r *Resource) DeployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
 	ctx := context.TODO()
 	templateName := strings.TrimSuffix(path.Base(templatePath), ".ova")
 

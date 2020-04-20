@@ -30,7 +30,7 @@ func TestSetupTemplate(t *testing.T) {
 	templateOVA := "https://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"
 
 	vs.SessionManager = c
-	_, err = vs.deployOVATemplate(templateOVA)
+	_, err = vs.DeployOVATemplate(templateOVA)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
