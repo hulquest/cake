@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/netapp/cake/pkg/cmds"
@@ -20,6 +21,7 @@ import (
 	v3 "github.com/rancher/types/client/management/v3"
 	v3public "github.com/rancher/types/client/management/v3public"
 	v3project "github.com/rancher/types/client/project/v3"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -51,6 +53,8 @@ func NewMgmtClusterFullConfig(clusterConfig MgmtCluster) engines.Cluster {
 		cmds.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
 	}
+	mc.dockerCli = new(dockerCli)
+	mc.osCli = new(osCli)
 	return mc
 }
 
@@ -63,6 +67,38 @@ type MgmtCluster struct {
 	clusterURL          string
 	rancherClient       *v3.Client
 	BootstrapIP         string `yaml:"BootstrapIP"`
+	dockerCli           dockerCmds
+	osCli               genericCmds
+}
+
+type dockerCmds interface {
+	NewEnvClient() (*client.Client, error)
+	ContainerCreate(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error)
+	ContainerStart(ctx context.Context, cli *client.Client, containerID string, options types.ContainerStartOptions) error
+}
+
+type dockerCli struct{}
+
+func (dockerCli) NewEnvClient() (*client.Client, error) {
+	return client.NewEnvClient()
+}
+
+func (dockerCli) ContainerCreate(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (container.ContainerCreateCreatedBody, error) {
+	return cli.ContainerCreate(ctx, config, hostConfig, networkingConfig, containerName)
+}
+
+func (dockerCli) ContainerStart(ctx context.Context, cli *client.Client, containerID string, options types.ContainerStartOptions) error {
+	return cli.ContainerStart(ctx, containerID, options)
+}
+
+type genericCmds interface {
+	GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error
+}
+
+type osCli struct{}
+
+func (osCli) GenericExecute(envs map[string]string, name string, args []string, ctx *context.Context) error {
+	return cmds.GenericExecute(envs, name, args, ctx)
 }
 
 // InstallAddons to HA RKE cluster
@@ -82,7 +118,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	var err error
 
 	c.events <- capv.Event{EventType: "progress", Event: "docker pull rancher"}
-	cli, err := client.NewEnvClient()
+	cli, err := c.dockerCli.NewEnvClient()
 	if err != nil {
 		return err
 	}
@@ -99,7 +135,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 		"pull",
 		imageName,
 	}
-	err = cmds.GenericExecute(nil, string(docker), args, nil)
+	err = c.osCli.GenericExecute(nil, string(docker), args, nil)
 	if err != nil {
 		return err
 	}
@@ -126,7 +162,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 
 	portBinding := nat.PortMap{containerHTTPPort: []nat.PortBinding{hostBinding}, containerHTTPSPort: []nat.PortBinding{hostBinding2}}
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	resp, err := c.dockerCli.ContainerCreate(ctx, cli, &container.Config{
 		Image: imageName,
 		ExposedPorts: nat.PortSet{
 			"80/tcp":  struct{}{},
@@ -143,7 +179,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	}
 
 	c.events <- capv.Event{EventType: "progress", Event: "docker run rancher"}
-	if err = cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err = c.dockerCli.ContainerStart(ctx, cli, resp.ID, types.ContainerStartOptions{}); err != nil {
 		return err
 	}
 
@@ -251,8 +287,8 @@ type vsphereCredentialConfig struct {
 	Type        string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
-// NewVsphereCloudCredential constructor
-func NewVsphereCloudCredential(vcenter, username, password string) *vsphereCloudCredential {
+// newVsphereCloudCredential constructor
+func newVsphereCloudCredential(vcenter, username, password string) *vsphereCloudCredential {
 	return &vsphereCloudCredential{
 		CloudCredential: &v3.CloudCredential{
 			Name: "rke-bootstrap",
@@ -362,7 +398,7 @@ func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 func (c *MgmtCluster) CreatePermanent() error {
 	c.events <- capv.Event{EventType: "progress", Event: "configure RKE management cluster"}
 	// POST https://localhost/v3/cloudcredential
-	body := NewVsphereCloudCredential(c.VcenterServer, c.VsphereUsername, c.VspherePassword)
+	body := newVsphereCloudCredential(c.VcenterServer, c.VsphereUsername, c.VspherePassword)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", body)
 	if err != nil {
 		return err
@@ -465,14 +501,27 @@ func (c *MgmtCluster) CreatePermanent() error {
 	}
 
 	c.events <- capv.Event{EventType: "progress", Event: "waiting 15 minutes for RKE cluster to be ready"}
-	return c.waitForCondition(c.clusterURL, "type", "Ready", 15)
+	err = c.waitForCondition(c.clusterURL, "type", "Ready", 15)
+	if err != nil {
+		return err
+	}
+
+	var g errgroup.Group
+	nodeCollectionResp, err := c.rancherClient.Node.List(&rTypes.ListOpts{})
+	if err != nil {
+		return err
+	}
+	for _, node := range nodeCollectionResp.Data {
+		g.Go(func() error {
+			return c.waitForCondition(node.Links["self"], "type", "Ready", 5)
+		})
+	}
+
+	return g.Wait()
 }
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
-	time.Sleep(time.Minute * 2)
-
 	c.events <- capv.Event{EventType: "progress", Event: "install production rancher server"}
 
 	catalogReq := &v3.Catalog{
@@ -483,17 +532,16 @@ func (c MgmtCluster) PivotControlPlane() error {
 		Username: "",
 		Password: "",
 	}
-	_, err := c.rancherClient.Catalog.Create(catalogReq)
+	catalogResp, err := c.rancherClient.Catalog.Create(catalogReq)
 	if err != nil {
 		return err
 	}
 	log.Info("Added rancher helm chart")
 
-	c.events <- capv.Event{EventType: "progress", Event: "sleeping 2 minutes, need to fix this"}
-	time.Sleep(time.Minute * 2)
+	err = c.waitForCondition(catalogResp.Links["self"], "type", "Refreshed", 2)
 
 	// I don't know if setting the default project ID is necessary. The UI did it so I added it here as well
-	var projectID string
+	var defaultProj v3.Project
 	projCollectionResp, err := c.rancherClient.Project.List(&rTypes.ListOpts{})
 	if err != nil {
 		return err
@@ -501,12 +549,12 @@ func (c MgmtCluster) PivotControlPlane() error {
 	log.Info("Got all projects")
 	for _, proj := range projCollectionResp.Data {
 		if proj.Name == "Default" {
-			projectID = proj.ID
+			defaultProj = proj
 		}
 	}
-	log.Infof("Got default project ID: %s", projectID)
+	log.Infof("Got default project ID: %s", defaultProj.ID)
 
-	projSplit := strings.Split(projectID, ":")
+	projSplit := strings.Split(defaultProj.ID, ":")
 	pID := projSplit[1]
 
 	resp, err := c.makeHTTPRequest("GET", fmt.Sprintf("%s/namespaces/default", c.clusterURL), nil)
@@ -521,48 +569,90 @@ func (c MgmtCluster) PivotControlPlane() error {
 	}
 	labels := result["labels"].(map[string]interface{})
 	labels["field.cattle.io/projectId"] = pID
-	result["projectId"] = projectID
+	result["projectId"] = defaultProj.ID
 	resp, err = c.makeHTTPRequest("PUT", fmt.Sprintf("%s/namespaces/default", c.clusterURL), result)
 	if err != nil {
 		return err
 	}
 	log.Infof("Updated default namespace")
 
+	appName := "rancher"
 	appReq := &v3project.App{
 		Prune:   false,
 		Timeout: 300,
 		Wait:    false,
-		Name:    "rancher",
+		Name:    appName,
 		Answers: map[string]string{
 			"tls": "external",
 		},
 		TargetNamespace: "default",
 		ExternalID:      "catalog://?catalog=rancher-latest&template=rancher&version=2.4.2",
-		ProjectID:       projectID,
+		ProjectID:       defaultProj.ID,
 		ValuesYaml:      "",
 	}
-
-	// POST is not a supported verb through the client
-	// FATA Bad response statusCode [405]. Status [405 Method Not Allowed].
-	// Body: [baseType=error, code=MethodNotAllow, message=Method POST not supported] from [https://localhost/v3/project/apps]
-	//appResp, err := v3projectCli.App.Create(appReq)
-	//if err != nil {
-	//	return err
-	//}
-
-	defaultProjectURL := fmt.Sprintf("https://localhost/v3/projects/%s", projectID)
-	resp, err = c.makeHTTPRequest("POST", fmt.Sprintf("%s/app", defaultProjectURL), appReq)
+	resp, err = c.makeHTTPRequest("POST", fmt.Sprintf("%s/app", defaultProj.Links["self"]), appReq)
 	if err != nil {
 		return err
 	}
 	log.Infof("Deployed rancher server via helm")
+
 	var appResp v3project.App
 	err = json.NewDecoder(resp.Body).Decode(&appResp)
 	rancherAppURL := appResp.Links["self"]
-	log.Infof("Rancher app URL: ", rancherAppURL)
+	log.Infof("Rancher app URL: %s", rancherAppURL)
 
 	c.events <- capv.Event{EventType: "progress", Event: "waiting 5 minutes for rancher server to be ready"}
-	return c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
+	err = c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
+	if err != nil {
+		return err
+	}
+
+	resp, err = c.makeHTTPRequest("GET", defaultProj.Links["workloads"], nil)
+	if err != nil {
+		return err
+	}
+	var workloadCollectionResp v3project.WorkloadCollection
+	err = json.NewDecoder(resp.Body).Decode(&workloadCollectionResp)
+	if err != nil {
+		return err
+	}
+	var rWorkload v3project.Workload
+	for _, w := range workloadCollectionResp.Data {
+		if w.Name == appName {
+			rWorkload = w
+			break
+		}
+	}
+	log.Infof("Rancher app workload ID: %s", rWorkload.ID)
+
+	if err = waitForAvailable(func() []v3project.DeploymentCondition {
+		resp, _ := c.makeHTTPRequest("GET", rWorkload.Links["self"], nil)
+		var w v3project.Workload
+		_ = json.NewDecoder(resp.Body).Decode(&w)
+		return w.DeploymentStatus.Conditions
+	}); err != nil {
+		return err
+	}
+
+	resp, _ = c.makeHTTPRequest("GET", rWorkload.Links["self"], nil)
+	var w v3project.Workload
+	err = json.NewDecoder(resp.Body).Decode(&w)
+	if err != nil {
+		return err
+	}
+
+	var rancherAddr string
+	for _, e := range w.PublicEndpoints {
+		if e.Protocol == "HTTPS" {
+			if len(e.Addresses) == 0 {
+				return errors.New("unable to find public HTTPS rancher URL")
+			}
+			rancherAddr = e.Addresses[0]
+		}
+	}
+
+	log.Infof("Rancher is available: https://%s", rancherAddr)
+	return nil
 }
 
 // Events returns the channel of progress messages
@@ -602,6 +692,25 @@ func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMin
 				}
 			}
 			log.Info("Waiting for resource...")
+		}
+	}
+}
+
+func waitForAvailable(cFunc func() []v3project.DeploymentCondition) error {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(30 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout after 5 minutes waiting for available condition")
+		case <-tick:
+			conditions := cFunc()
+			for _, c := range conditions {
+				if c.Type == "Available" {
+					return nil
+				}
+			}
+			log.Info("Waiting for available...")
 		}
 	}
 }
@@ -693,13 +802,13 @@ func waitForRancherAPI() error {
 				log.Debugf("Ignoring error getting URL: %s", err)
 			}
 			if resp != nil {
-				if resp.StatusCode == http.StatusOK {
+				if resp.StatusCode != http.StatusOK {
+					log.Debugf("Ignoring unsuccessful HTTP response from Rancher API: %v+", resp)
+				} else {
 					log.Info("Rancher API is responding")
 					// TODO: Figure out if this is still required
 					time.Sleep(time.Second * 5)
 					return nil
-				} else {
-					log.Debugf("Ignoring unsuccessful HTTP response from Rancher API: %v+", resp)
 				}
 			}
 		}
