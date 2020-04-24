@@ -15,6 +15,7 @@ require (
 	github.com/gookit/color v1.2.4
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.9.1
 	github.com/rancher/norman v0.0.0-20190821234528-20a936b685b0

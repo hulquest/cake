@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/netapp/cake/pkg/config/events"
 
 	"github.com/netapp/cake/pkg/cmds"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
-func (m *MgmtCluster) InstallControlPlane() error {
+func (m MgmtCluster) InstallControlPlane() error {
 	var err error
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -20,8 +23,8 @@ func (m *MgmtCluster) InstallControlPlane() error {
 
 	secretSpecContents := fmt.Sprintf(
 		VsphereCredsSecret.Contents,
-		m.VsphereUsername,
-		m.VspherePassword,
+		m.Username,
+		m.Password,
 	)
 	err = writeToDisk(m.ClusterName, VsphereCredsSecret.Name, []byte(secretSpecContents), 0644)
 	if err != nil {
@@ -43,21 +46,23 @@ func (m *MgmtCluster) InstallControlPlane() error {
 		return err
 	}
 
-	m.events <- Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
+	m.EventStream <- events.Event{EventType: "progress", Event: "init capi in the bootstrap cluster"}
+	nodeTemplate := strings.Split(filepath.Base(m.OVA.NodeTemplate), ".ova")[0]
+	LoadBalancerTemplate := strings.Split(filepath.Base(m.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
-		"VSPHERE_PASSWORD":           m.VspherePassword,
-		"VSPHERE_USERNAME":           m.VsphereUsername,
-		"VSPHERE_SERVER":             m.VcenterServer,
+		"VSPHERE_PASSWORD":           m.Password,
+		"VSPHERE_USERNAME":           m.Username,
+		"VSPHERE_SERVER":             m.URL,
 		"VSPHERE_DATACENTER":         m.Datacenter,
 		"VSPHERE_DATASTORE":          m.Datastore,
 		"VSPHERE_NETWORK":            m.ManagementNetwork,
 		"VSPHERE_RESOURCE_POOL":      m.ResourcePool,
 		"VSPHERE_FOLDER":             m.Folder,
-		"VSPHERE_TEMPLATE":           m.NodeTemplate,
-		"VSPHERE_HAPROXY_TEMPLATE":   m.LoadBalancerTemplate,
-		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSHAuthorizedKey,
+		"VSPHERE_TEMPLATE":           nodeTemplate,
+		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
+		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
 		"KUBECONFIG":                 kubeConfig,
-		"GITHUB_TOKEN":               "",
+		//"GITHUB_TOKEN":               "",
 	}
 	args = []string{
 		"init",
@@ -72,15 +77,15 @@ func (m *MgmtCluster) InstallControlPlane() error {
 	// TODO wait for CAPv deployment in k8s to be ready
 	time.Sleep(30 * time.Second)
 
-	m.events <- Event{EventType: "progress", Event: "writing CAPv spec file out"}
+	m.EventStream <- events.Event{EventType: "progress", Event: "writing CAPv spec file out"}
 	args = []string{
 		"config",
 		"cluster",
 		m.ClusterName,
 		"--infrastructure=vsphere",
 		"--kubernetes-version=" + m.KubernetesVersion,
-		"--control-plane-machine-count=" + m.ControlPlaneMachineCount,
-		"--worker-machine-count=" + m.WorkerMachineCount,
+		fmt.Sprintf("--control-plane-machine-count=%v", m.ControlPlaneCount),
+		fmt.Sprintf("--worker-machine-count=%v", m.WorkerCount),
 	}
 	c := cmds.NewCommandLine(envs, string(clusterctl), args, nil)
 	stdout, stderr, err := c.Program().Execute()

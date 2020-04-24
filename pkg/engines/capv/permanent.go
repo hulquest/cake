@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
-
 	v1 "k8s.io/api/core/v1"
 )
 
 // CreatePermanent creates the permanent CAPv management cluster
-func (m *MgmtCluster) CreatePermanent() error {
+func (m MgmtCluster) CreatePermanent() error {
 	var err error
 	var capiConfig string
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -49,19 +48,11 @@ func (m *MgmtCluster) CreatePermanent() error {
 	}
 	timeout := 15 * time.Minute
 	grepString := "Running"
-	controlCount, err := strconv.Atoi(m.ControlPlaneMachineCount)
+	grepNum := m.ControlPlaneCount + m.WorkerCount
 	if err != nil {
 		return err
 	}
-	workerCount, err := strconv.Atoi(m.WorkerMachineCount)
-	if err != nil {
-		return err
-	}
-	grepNum := controlCount + workerCount
-	if err != nil {
-		return err
-	}
-	err = kubeRetry(nil, args, timeout, grepString, grepNum, nil, m.events)
+	err = kubeRetry(nil, args, timeout, grepString, grepNum, nil, m.EventStream)
 	if err != nil {
 		return err
 	}
@@ -103,7 +94,7 @@ func (m *MgmtCluster) CreatePermanent() error {
 	}
 	grepString = "Ready"
 
-	err = kubeRetry(envs, args, timeout, grepString, grepNum, nil, m.events)
+	err = kubeRetry(envs, args, timeout, grepString, grepNum, nil, m.EventStream)
 	if err != nil {
 		return err
 	}

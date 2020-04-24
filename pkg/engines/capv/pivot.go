@@ -3,15 +3,15 @@ package capv
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/netapp/cake/pkg/cmds"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
-func (m *MgmtCluster) PivotControlPlane() error {
+func (m MgmtCluster) PivotControlPlane() error {
 	var err error
-
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -39,20 +39,22 @@ func (m *MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-
+	nodeTemplate := strings.Split(filepath.Base(m.OVA.NodeTemplate), ".ova")[0]
+	LoadBalancerTemplate := strings.Split(filepath.Base(m.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
-		"VSPHERE_PASSWORD":           m.VspherePassword,
-		"VSPHERE_USERNAME":           m.VsphereUsername,
-		"VSPHERE_SERVER":             m.VcenterServer,
+		"VSPHERE_PASSWORD":           m.Password,
+		"VSPHERE_USERNAME":           m.Username,
+		"VSPHERE_SERVER":             m.URL,
 		"VSPHERE_DATACENTER":         m.Datacenter,
 		"VSPHERE_DATASTORE":          m.Datastore,
 		"VSPHERE_NETWORK":            m.ManagementNetwork,
 		"VSPHERE_RESOURCE_POOL":      m.ResourcePool,
 		"VSPHERE_FOLDER":             m.Folder,
-		"VSPHERE_TEMPLATE":           m.NodeTemplate,
-		"VSPHERE_HAPROXY_TEMPLATE":   m.LoadBalancerTemplate,
-		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSHAuthorizedKey,
+		"VSPHERE_TEMPLATE":           nodeTemplate,
+		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
+		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
 		"KUBECONFIG":                 permanentKubeConfig,
+		//"GITHUB_TOKEN":               "",
 	}
 
 	args = []string{
@@ -74,7 +76,7 @@ func (m *MgmtCluster) PivotControlPlane() error {
 		"KubeadmControlPlane",
 		"--output=jsonpath='{.items[0].status.ready}'",
 	}
-	err = kubeRetry(envs, args, timeout, grepString, 1, nil, m.events)
+	err = kubeRetry(envs, args, timeout, grepString, 1, nil, m.EventStream)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,12 @@
 package engines
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/netapp/cake/pkg/config/events"
+)
+
 // Cluster interface for deploying K8s clusters
 type Cluster interface {
 	// CreateBootstrap sets up the boostrap cluster
@@ -15,27 +22,88 @@ type Cluster interface {
 	// RequiredCommands returns the command like binaries need to run the engine
 	RequiredCommands() []string
 	// Events are messages from the implementation
-	Events() chan interface{}
+	Events() chan events.Event
 }
 
-// MgmtCluster spec
+// MgmtCluster spec for the Engine
 type MgmtCluster struct {
-	K8s                      `yaml:",inline" mapstructure:",squash"`
-	LoadBalancerTemplate     string `yaml:"LoadBalancerTemplate"`
-	NodeTemplate             string `yaml:"NodeTemplate"`
-	SSHAuthorizedKey         string `yaml:"SshAuthorizedKey"`
-	ControlPlaneMachineCount string `yaml:"ControlPlaneMachineCount"`
-	WorkerMachineCount       string `yaml:"WorkerMachineCount"`
-	LogFile                  string `yaml:"LogFile"`
+	LogFile       string `yaml:"LogFile" json:"logfile"`
+	SSH           SSH    `yaml:"SSH" json:"ssh"`
+	Addons        Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
+	ClusterConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
+	EventStream   chan events.Event `yaml:"-" json:"-" mapstructure:"-"`
 }
 
-// K8s spec
-type K8s struct {
-	ClusterName           string `yaml:"ClusterName"`
-	CapiSpec              string `yaml:"CapiSpec"`
-	KubernetesVersion     string `yaml:"KubernetesVersion"`
-	Namespace             string `yaml:"Namespace"`
-	Kubeconfig            string `yaml:"Kubeconfig"`
-	KubernetesPodCidr     string `yaml:"KubernetesPodCidr"`
-	KubernetesServiceCidr string `yaml:"KubernetesServiceCidr"`
+// ClusterConfig specifies the details about the management cluster
+type ClusterConfig struct {
+	ClusterName           string `yaml:"ClusterName" json:"clustername"`
+	ControlPlaneCount     int    `yaml:"ControlPlaneCount" json:"controlplanecount"`
+	WorkerCount           int    `yaml:"WorkerCount" json:"workercount"`
+	KubernetesVersion     string `yaml:"KubernetesVersion" json:"kubernetesversion"`
+	KubernetesPodCidr     string `yaml:"KubernetesPodCidr" json:"kubernetespodcidr"`
+	KubernetesServiceCidr string `yaml:"KubernetesServiceCidr" json:"kubernetesservicecidr"`
+	Kubeconfig            string `yaml:"Kubeconfig" json:"kubeconfig"`
+	Namespace             string `yaml:"Namespace" json:"namespace"`
+}
+
+// SSH holds ssh info
+type SSH struct {
+	Username      string `yaml:"Username" json:"username"`
+	AuthorizedKey string `yaml:"AuthorizedKey" json:"authorizedkey"`
+}
+
+// Addons holds optional configuration values
+type Addons struct {
+	Observability ObservabilitySpec `yaml:"Observability,omitempty" json:"observability,omitempty"`
+	Solidfire     Solidfire         `yaml:"Solidfire,omitempty" json:"solidfire,omitempty"`
+}
+
+// ObservabilitySpec holds values for the observability archive file
+type ObservabilitySpec struct {
+	Enable          bool   `yaml:"Enable" json:"enable"`
+	ArchiveLocation string `yaml:"ArchiveLocation" json:"archivelocation"`
+}
+
+// Solidfire Addon info
+type Solidfire struct {
+	Enable   bool   `yaml:"Enable"`
+	MVIP     string `yaml:"MVIP"`
+	SVIP     string `yaml:"SVIP"`
+	User     string `yaml:"User"`
+	Password string `yaml:"Password"`
+}
+
+// Run provider bootstrap process
+func Run(c Cluster) error {
+	exist := c.RequiredCommands()
+	if len(exist) > 0 {
+		return fmt.Errorf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))
+	}
+
+	err := c.CreateBootstrap()
+	if err != nil {
+		return err
+	}
+
+	err = c.InstallControlPlane()
+	if err != nil {
+		return err
+	}
+
+	err = c.CreatePermanent()
+	if err != nil {
+		return err
+	}
+
+	err = c.PivotControlPlane()
+	if err != nil {
+		return err
+	}
+
+	err = c.InstallAddons()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
