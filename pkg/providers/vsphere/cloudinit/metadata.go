@@ -9,11 +9,13 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
+// MetadataValues used
 type MetadataValues struct {
 	Hostname string
 	Networks []NetworkConfig
 }
 
+// NetworkConfig values
 type NetworkConfig struct {
 	MACAddress  string
 	DHCP4       bool
@@ -41,6 +43,7 @@ func (e *Config) SetCloudInitMetadata(data []byte) error {
 	return nil
 }
 
+// GetMetadata returns the metadata
 func GetMetadata(metadataValues *MetadataValues) ([]byte, error) {
 	textTemplate, err := template.New("f").Parse(metadataTemplatev1)
 	if err != nil {

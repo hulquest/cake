@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,17 +22,20 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		log.Fatal(err)
 	}
 	newpath := filepath.Join(home, ConfigDir, clusterName, "/")
 	os.MkdirAll(newpath, os.ModePerm)
 	err = ioutil.WriteFile(newpath+"/"+clusterName+"-base.yaml", []byte(baseYaml), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func shutdown() {
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		log.Fatal(err)
 	}

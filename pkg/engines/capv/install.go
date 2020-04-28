@@ -2,11 +2,11 @@ package capv
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/config/events"
 
 	"github.com/netapp/cake/pkg/cmds"
@@ -15,18 +15,18 @@ import (
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
 func (m MgmtCluster) InstallControlPlane() error {
 	var err error
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
+	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, vsphereCredsSecret.Name)
 
 	secretSpecContents := fmt.Sprintf(
-		VsphereCredsSecret.Contents,
+		vsphereCredsSecret.Contents,
 		m.Username,
 		m.Password,
 	)
-	err = writeToDisk(m.ClusterName, VsphereCredsSecret.Name, []byte(secretSpecContents), 0644)
+	err = writeToDisk(m.ClusterName, vsphereCredsSecret.Name, []byte(secretSpecContents), 0644)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,9 @@ func (m MgmtCluster) InstallControlPlane() error {
 		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
 		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
 		"KUBECONFIG":                 kubeConfig,
-		//"GITHUB_TOKEN":               "",
+	}
+	if m.GithubToken != "" {
+		envs["GITHUB_TOKEN"] = m.GithubToken
 	}
 	args = []string{
 		"init",

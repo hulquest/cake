@@ -1,6 +1,10 @@
 package providers
 
-import "github.com/netapp/cake/pkg/config/events"
+import (
+	"github.com/netapp/cake/pkg/config/cluster"
+	"github.com/netapp/cake/pkg/config/events"
+	"github.com/netapp/cake/pkg/config/types"
+)
 
 // Bootstrap is the interface for creating a bootstrap vm and running cluster provisioning
 type Bootstrap interface {
@@ -20,7 +24,11 @@ type Bootstrap interface {
 
 // Spec for the Provider
 type Spec struct {
-	EventStream chan events.Event `yaml:"-" json:"-" mapstructure:"-"`
+	cluster.K8sConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
+	EventStream       chan events.Event `yaml:"-" json:"-" mapstructure:"-"`
+	EngineType        types.EngineType  `yaml:"EngineType" json:"enginetype"`
+	LogFile           string            `yaml:"LogFile" json:"logfile"`
+	SSH               cluster.SSH       `yaml:"SSH" json:"ssh"`
 }
 
 // Run provider bootstrap process

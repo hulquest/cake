@@ -179,23 +179,27 @@ func GenericExecute(envs map[string]string, name string, args []string, ctx *con
 	return err
 }
 
+// ProvisionerCommands head of command list
 type ProvisionerCommands struct {
 	Name string
 	head *ExternalCommand
 }
 
+// ExternalCommand is a single external command
 type ExternalCommand struct {
 	Name    string
 	Actions *CommandLine
 	next    *ExternalCommand
 }
 
+// CreateCommandList constructor
 func CreateCommandList(name string) *ProvisionerCommands {
 	return &ProvisionerCommands{
 		Name: name,
 	}
 }
 
+// AddCommand adds a command to the list
 func (c *ProvisionerCommands) AddCommand(name string, actions *CommandLine) error {
 	s := &ExternalCommand{
 		Name:    name,
@@ -213,6 +217,7 @@ func (c *ProvisionerCommands) AddCommand(name string, actions *CommandLine) erro
 	return nil
 }
 
+// GetAll returns all commands in the linked list
 func (c *ProvisionerCommands) GetAll() []string {
 	var all []string
 	currentNode := c.head
@@ -228,6 +233,7 @@ func (c *ProvisionerCommands) GetAll() []string {
 	return all
 }
 
+// Exist returns whether a command exists in the llinked
 func (c *ProvisionerCommands) Exist() []string {
 	var result []string
 	currentNode := c.head

@@ -1,5 +1,6 @@
 package capv
 
+// names for capv things
 const (
 	ConfigDir             = ".cluster-engine/"
 	vsphereWorkloadFolder = "workloads"

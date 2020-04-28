@@ -1,22 +1,22 @@
 package capv
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/cmds"
 )
 
 // PivotControlPlane moves CAPv from the bootstrap cluster to the permanent management cluster
 func (m MgmtCluster) PivotControlPlane() error {
 	var err error
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}
-	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, VsphereCredsSecret.Name)
+	secretSpecLocation := filepath.Join(home, ConfigDir, m.ClusterName, vsphereCredsSecret.Name)
 	permanentKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, "kubeconfig")
 	bootstrapKubeConfig := filepath.Join(home, ConfigDir, m.ClusterName, bootstrapKubeconfig)
 	envs := map[string]string{
@@ -54,7 +54,9 @@ func (m MgmtCluster) PivotControlPlane() error {
 		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
 		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
 		"KUBECONFIG":                 permanentKubeConfig,
-		//"GITHUB_TOKEN":               "",
+	}
+	if m.GithubToken != "" {
+		envs["GITHUB_TOKEN"] = m.GithubToken
 	}
 
 	args = []string{

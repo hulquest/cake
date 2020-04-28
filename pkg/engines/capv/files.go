@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/mitchellh/go-homedir"
 )
 
 type fileOnDisk struct {
@@ -82,7 +84,7 @@ parameters:
 ]
 }`,
 	}
-	KustomizationFile = fileOnDisk{
+	kustomizationFile = fileOnDisk{
 		Name: "kustomization.yaml",
 		Contents: `apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -109,7 +111,7 @@ patchesJson6902:
   path: patch3.yaml
 `,
 	}
-	PatchFileOne = fileOnDisk{
+	patchFileOne = fileOnDisk{
 		Name: "patch1.yaml",
 		Contents: `- op: add
   path: /spec/template/spec/network/devices/-
@@ -117,7 +119,7 @@ patchesJson6902:
     dhcp4: true
     networkName: %s`,
 	}
-	PatchFileTwo = fileOnDisk{
+	patchFileTwo = fileOnDisk{
 		Name: "patch2.yaml",
 		Contents: `- op: add
   path: /spec/kubeadmConfigSpec/postKubeadmCommands
@@ -131,7 +133,7 @@ patchesJson6902:
     - service open-iscsi start
 `,
 	}
-	PatchFileThree = fileOnDisk{
+	patchFileThree = fileOnDisk{
 		Name: "patch3.yaml",
 		Contents: `- op: add
   path: /spec/template/spec/postKubeadmCommands
@@ -145,7 +147,7 @@ patchesJson6902:
     - service open-iscsi start
 `,
 	}
-	VsphereCredsSecret = fileOnDisk{
+	vsphereCredsSecret = fileOnDisk{
 		Name: "vsphere-creds.yaml",
 		Contents: `apiVersion: v1
 kind: Namespace
@@ -170,7 +172,7 @@ stringData:
 func writeToDisk(dirname string, fileName string, specFile []byte, perms os.FileMode) error {
 	var err error
 
-	home, err := os.UserHomeDir()
+	home, err := homedir.Dir()
 	if err != nil {
 		return err
 	}

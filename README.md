@@ -1,5 +1,8 @@
 # CAKE
 
+[![Test and Build](https://github.com/NetApp/cake/workflows/Test%20and%20Build/badge.svg)](https://github.com/NetApp/cake/actions?query=workflow%3A%22Test+and+Build%22)
+[![Go Report](https://goreportcard.com/badge/github.com/netapp/cake)](https://goreportcard.com/report/github.com/netapp/cake)
+
 Kubernetes bootstrap is a piece of cake!
 Or "Cloud Adjacent Kubernetes Engine", is a simple tool used to deploy on-prem kubernetes and Rancher clusters.
 

@@ -9,10 +9,12 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
 
 	pkgerrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -24,31 +26,51 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-// DeployOVATemplate uploads ova and makes it a template
-func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object.VirtualMachine, error) {
-	ctx := context.TODO()
+// DeployOVATemplates deploys multiple OVAs asynchronously
+func (s *Session) DeployOVATemplates(templatePaths ...string) (map[string]*object.VirtualMachine, error) {
+	templatePaths = sliceDedup(templatePaths)
+	numOVAs := len(templatePaths)
+	result := make(map[string]*object.VirtualMachine, numOVAs)
 
-	vSphereClient, err := r.SessionManager.GetClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get vSphere client, %v", err)
+	var g errgroup.Group
+	for _, template := range templatePaths {
+		if template == "" {
+			continue
+		}
+		template := template
+		g.Go(func() error {
+			r, err := s.deployOVATemplate(template)
+			if err != nil {
+				return err
+			}
+			result[template] = r
+			return nil
+		})
 	}
+	if err := g.Wait(); err != nil {
+		return result, err
+	}
+	return result, nil
 
+}
+
+// deployOVATemplate uploads ova and makes it a template
+func (s *Session) deployOVATemplate(templatePath string) (*object.VirtualMachine, error) {
+	templateName := strings.TrimSuffix(path.Base(templatePath), ".ova")
+	ctx := context.TODO()
+	vSphereClient := s.Conn
 	finder := find.NewFinder(vSphereClient.Client, true)
-
-	finder.SetDatacenter(r.Datacenter)
-
+	finder.SetDatacenter(s.Datacenter)
 	foundTemplate, err := finder.VirtualMachine(ctx, templateName)
 	if err == nil {
 		return foundTemplate, nil
 	}
-
 	networks := []types.OvfNetworkMapping{
 		{
 			Name:    "nic0",
-			Network: r.Network.Reference(),
+			Network: s.Network.Reference(),
 		},
 	}
-
 	cisp := types.OvfCreateImportSpecParams{
 		DiskProvisioning:   "thin",
 		EntityName:         templateName,
@@ -63,7 +85,7 @@ func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object
 		NetworkMapping: networks,
 	}
 
-	vm, err := createVirtualMachine(ctx, cisp, templatePath, r)
+	vm, err := createVirtualMachine(ctx, cisp, templatePath, s)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create virtual machine, %v", err)
 	}
@@ -81,11 +103,8 @@ func (r *Resource) DeployOVATemplate(templateName, templatePath string) (*object
 	return vm, nil
 }
 
-func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecParams, ovaPath string, vSphere *Resource) (*object.VirtualMachine, error) {
-	vSphereClient, err := vSphere.SessionManager.GetClient()
-	if err != nil {
-		return nil, fmt.Errorf("unable to get vSphere client, %v", err)
-	}
+func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecParams, ovaPath string, vSphere *Session) (*object.VirtualMachine, error) {
+	vSphereClient := vSphere.Conn
 
 	ovaClient, err := newOVA(vSphereClient, ovaPath)
 	if err != nil {
@@ -101,19 +120,21 @@ func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecPar
 	}
 	switch s := spec.ImportSpec.(type) {
 	case *types.VirtualMachineImportSpec:
-		if s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection != nil {
-			s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection = nil
+		if s.ConfigSpec.VAppConfig != nil {
+			if s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection != nil {
+				s.ConfigSpec.VAppConfig.GetVmConfigSpec().OvfSection = nil
+			}
 		}
 	}
 
 	lease, err := vSphere.ResourcePool.ImportVApp(ctx, spec.ImportSpec, vSphere.Folder, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("1 unable to import the template, %v", err)
 	}
 
 	info, err := lease.Wait(ctx, spec.FileItem)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("2 unable to import the template, %v", err)
 	}
 
 	u := lease.StartUpdater(ctx, info)
@@ -122,13 +143,13 @@ func createVirtualMachine(ctx context.Context, cisp types.OvfCreateImportSpecPar
 	for _, i := range info.Items {
 		err = ovaClient.upload(ctx, lease, i, ovaPath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to import the template, %v", err)
+			return nil, fmt.Errorf("3 unable to import the template, %v", err)
 		}
 	}
 
 	err = lease.Complete(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("unable to import the template, %v", err)
+		return nil, fmt.Errorf("4 unable to import the template, %v", err)
 	}
 
 	moref := &info.Entity
@@ -195,6 +216,11 @@ func (h *handler) getImportSpec(ctx context.Context, ovaPath string, resourcePoo
 	o, err := h.readOvf("*.ovf", ovaPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read OVF file from %s, %v", ovaPath, err)
+	}
+	g := types.OvfParseDescriptorParams{}
+	p, err := m.ParseDescriptor(ctx, string(o), g)
+	if err == nil {
+		cisp.NetworkMapping[0].Name = p.Network[0].Name
 	}
 
 	return m.CreateImportSpec(ctx, string(o), resourcePool, datastore, cisp)
@@ -319,4 +345,17 @@ func removeNICs(ctx context.Context, vm *object.VirtualMachine) error {
 	}
 
 	return nil
+}
+
+func sliceDedup(list []string) []string {
+	sort.Strings(list)
+	j := 0
+	for i := 1; i < len(list); i++ {
+		if list[j] == list[i] {
+			continue
+		}
+		j++
+		list[j] = list[i]
+	}
+	return list[:j+1]
 }

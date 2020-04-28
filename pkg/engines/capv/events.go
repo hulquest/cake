@@ -5,6 +5,6 @@ import (
 )
 
 // Events returns the channel of progress messages
-func (m MgmtCluster) Events() (chan events.Event) {
+func (m MgmtCluster) Events() chan events.Event {
 	return m.EventStream
 }

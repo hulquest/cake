@@ -46,8 +46,10 @@ runcmd:
   - /tmp/netapp-boot.sh
 `
 
+// Config for base options
 type Config []types.BaseOptionValue
 
+// UserDataValues for system
 type UserDataValues struct {
 	User              string
 	SSHAuthorizedKeys []string
@@ -71,6 +73,7 @@ func (e *Config) SetCloudInitUserData(data []byte) error {
 	return nil
 }
 
+// GetUserData returns the user data
 func GetUserData(values *UserDataValues) ([]byte, error) {
 	textTemplate, err := template.New("f").Funcs(defaultFuncMap()).Parse(userDataTemplate)
 	if err != nil {
@@ -103,6 +106,7 @@ func defaultFuncMap() template.FuncMap {
 	}
 }
 
+// GenerateUserData creates the user data
 func GenerateUserData(bootScript, publicKey, osUser string) (Config, error) {
 	// Create user data
 	userdataValues := &UserDataValues{
