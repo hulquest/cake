@@ -9,6 +9,10 @@ import (
 
 // Prepare bootstrap VM for rke deployment
 func (v *MgmtBootstrapRKE) Prepare() error {
+	err := v.createFolders()
+	if err != nil {
+		return err
+	}
 	configYAML, err := yaml.Marshal(v)
 	if err != nil {
 		return err
@@ -20,6 +24,10 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 
 // Prepare bootstrap VM for capv deployment
 func (v *MgmtBootstrapCAPV) Prepare() error {
+	err := v.createFolders()
+	if err != nil {
+		return err
+	}
 	configYAML, err := yaml.Marshal(v)
 	if err != nil {
 		return err
@@ -34,12 +42,9 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	return v.MgmtBootstrap.prepare(configYAML)
 }
 
-// Prepare the environment for bootstrapping
-func (v *MgmtBootstrap) prepare(configYAML []byte) error {
-
+func (v *MgmtBootstrap) createFolders() error {
 	desiredFolders := []string{
 		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
-		fmt.Sprintf("%s/%s", baseFolder, mgmtFolder),
 		fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder),
 	}
 
@@ -57,11 +62,19 @@ func (v *MgmtBootstrap) prepare(configYAML []byte) error {
 			return err
 		}
 		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
-
 	} else {
-		v.Folder = v.TrackedResources.Folders[mgmtFolder].InventoryPath
+		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
+		v.Folder = tempFolder[mgmtFolder].InventoryPath
 	}
+	return nil
+}
 
+// Prepare the environment for bootstrapping
+func (v *MgmtBootstrap) prepare(configYAML []byte) error {
 	v.Session.Folder = v.TrackedResources.Folders[templatesFolder]
 	ovas, err := v.Session.DeployOVATemplates(v.OVA.BootstrapTemplate, v.OVA.NodeTemplate, v.OVA.LoadbalancerTemplate)
 	if err != nil {
