@@ -79,7 +79,7 @@ chmod +x /usr/local/bin/socat
 		template:   ovas[v.OVA.NodeTemplate],
 		name:       fmt.Sprintf("%s1", rkeControlNodePrefix),
 		bootScript: script,
-		publicKey:  v.SSH.AuthorizedKey,
+		publicKey:  v.SSH.AuthorizedKeys,
 		osUser:     v.SSH.Username,
 	}
 	nodes = append(nodes, bootstrapNode)
@@ -89,7 +89,7 @@ chmod +x /usr/local/bin/socat
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
 			bootScript: baseScript,
-			publicKey:  v.SSH.AuthorizedKey,
+			publicKey:  v.SSH.AuthorizedKeys,
 			osUser:     v.SSH.Username,
 		}
 		nodes = append(nodes, spec)
@@ -100,7 +100,7 @@ chmod +x /usr/local/bin/socat
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
 			bootScript: baseScript,
-			publicKey:  v.SSH.AuthorizedKey,
+			publicKey:  v.SSH.AuthorizedKeys,
 			osUser:     v.SSH.Username,
 		}
 		nodes = append(nodes, spec)

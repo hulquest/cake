@@ -107,11 +107,11 @@ func defaultFuncMap() template.FuncMap {
 }
 
 // GenerateUserData creates the user data
-func GenerateUserData(bootScript, publicKey, osUser string) (Config, error) {
+func GenerateUserData(bootScript string, publicKey []string, osUser string) (Config, error) {
 	// Create user data
 	userdataValues := &UserDataValues{
 		User:              osUser,
-		SSHAuthorizedKeys: []string{publicKey},
+		SSHAuthorizedKeys: publicKey,
 		BootScript:        bootScript,
 	}
 

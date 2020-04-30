@@ -17,7 +17,7 @@ type cloneSpec struct {
 	template   *object.VirtualMachine
 	name       string
 	bootScript string
-	publicKey  string
+	publicKey  []string
 	osUser     string
 }
 
@@ -57,14 +57,14 @@ func (s *Session) CloneTemplates(clonesSpec ...cloneSpec) (map[string]*object.Vi
 }
 
 // CloneTemplate creates a VM from a template
-func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
+func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bootScript string, publicKeys []string, osUser string) (*object.VirtualMachine, error) {
 
 	// give whole clone process a 10 minute timeout
 	d := time.Now().Add(10 * time.Minute)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
 
-	cloudinitUserDataConfig, err := cloudinit.GenerateUserData(bootScript, publicKey, osUser)
+	cloudinitUserDataConfig, err := cloudinit.GenerateUserData(bootScript, publicKeys, osUser)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate user data, %v", err)
 	}

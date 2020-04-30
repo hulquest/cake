@@ -52,7 +52,7 @@ func (m MgmtCluster) PivotControlPlane() error {
 		"VSPHERE_FOLDER":             m.Folder,
 		"VSPHERE_TEMPLATE":           nodeTemplate,
 		"VSPHERE_HAPROXY_TEMPLATE":   LoadBalancerTemplate,
-		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKey,
+		"VSPHERE_SSH_AUTHORIZED_KEY": m.SSH.AuthorizedKeys[0],
 		"KUBECONFIG":                 permanentKubeConfig,
 	}
 	if m.GithubToken != "" {

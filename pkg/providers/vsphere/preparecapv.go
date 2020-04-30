@@ -93,7 +93,7 @@ cat <<EOF> %s
 EOF
 
 `, fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable), fmt.Sprintf(runRemoteCmd, commandPort), v.Prerequisites, remoteConfig, configYAML)
-	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.BootstrapTemplate], bootstrapVMName, script, v.SSH.AuthorizedKey, v.SSH.Username)
+	bootstrapVM, err := v.Session.CloneTemplate(ovas[v.OVA.BootstrapTemplate], bootstrapVMName, script, v.SSH.AuthorizedKeys, v.SSH.Username)
 	if err != nil {
 		return err
 	}
