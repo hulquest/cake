@@ -10,7 +10,51 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
+	"golang.org/x/sync/errgroup"
 )
+
+type cloneSpec struct {
+	template   *object.VirtualMachine
+	name       string
+	bootScript string
+	publicKey  string
+	osUser     string
+}
+
+// CloneTemplates clones multiple VMs asynchronously
+func (s *Session) CloneTemplates(clonesSpec ...cloneSpec) (map[string]*object.VirtualMachine, error) {
+	numVMs := len(clonesSpec)
+	result := make(map[string]*object.VirtualMachine, numVMs)
+
+	var g errgroup.Group
+
+	batch := 3
+
+	for i := 0; i < numVMs; i += batch {
+		j := i + batch
+		if j > numVMs {
+			j = numVMs
+		}
+
+		for _, vm := range clonesSpec[i:j] {
+			vm := vm
+			g.Go(func() error {
+				r, err := s.CloneTemplate(vm.template, vm.name, vm.bootScript, vm.publicKey, vm.osUser)
+				if err != nil {
+					return err
+				}
+				result[vm.name] = r
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			return result, err
+		}
+	}
+
+	return result, nil
+
+}
 
 // CloneTemplate creates a VM from a template
 func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bootScript, publicKey, osUser string) (*object.VirtualMachine, error) {
@@ -28,6 +72,11 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 	spec := types.VirtualMachineCloneSpec{}
 	spec.Config = &types.VirtualMachineConfigSpec{}
 	spec.Config.ExtraConfig = cloudinitUserDataConfig
+	/*
+		TODO make cpu and memory configurable
+		spec.Config.NumCPUs = int32
+		spec.Config.MemoryMB = int64
+	*/
 
 	spec.Location.Datastore = types.NewReference(s.Datastore.Reference())
 	spec.Location.Pool = types.NewReference(s.ResourcePool.Reference())

@@ -16,7 +16,6 @@ require (
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.9.1
 	github.com/rancher/norman v0.0.0-20190821234528-20a936b685b0
 	github.com/rancher/types v0.0.0-20190911221659-bba8483953e4
 	github.com/sirupsen/logrus v1.5.0

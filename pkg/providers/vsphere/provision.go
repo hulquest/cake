@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 type tcp struct {
@@ -26,7 +27,11 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 	}
 	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
 
-	tcp, err := createConnectionToBootstrap(bootstrapVMIP)
+	configYAML, err := yaml.Marshal(v)
+	if err != nil {
+		return err
+	}
+	tcp, err := createConnectionToBootstrap(bootstrapVMIP, string(configYAML))
 	if err != nil {
 		return err
 	}
@@ -39,28 +44,51 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 
 // Provision calls the process to create the management cluster for RKE
 func (v *MgmtBootstrapRKE) Provision() error {
-	bootstrapVMIP, err := GetVMIP(v.TrackedResources.VMs[bootstrapVMName])
+	var bootstrapVMIP string
+	if v.Nodes == nil {
+		v.Nodes = map[string]string{}
+	}
+	for name, vm := range v.TrackedResources.VMs {
+		vmIP, err := GetVMIP(vm)
+		if err != nil {
+			return err
+		}
+		if name == fmt.Sprintf("%s1", rkeControlNodePrefix) {
+			bootstrapVMIP = vmIP
+			v.BootstrapIP = vmIP
+		}
+		v.Nodes[name] = vmIP
+		// TODO switch log message to eents on the eventstream chan
+		log.WithFields(log.Fields{
+			"nodeName": name,
+			"nodeIP":   vmIP,
+		}).Info("vm IP received")
+	}
+
+	configYAML, err := yaml.Marshal(v)
 	if err != nil {
 		return err
 	}
-	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
-	v.BootstrapIP = bootstrapVMIP
-
-	tcp, err := createConnectionToBootstrap(bootstrapVMIP)
+	tcp, err := createConnectionToBootstrap(bootstrapVMIP, string(configYAML))
 	if err != nil {
 		return err
 	}
-
-	cakeCmd := fmt.Sprintf("CAKE_BOOTSTRAPIP=%s %s",
+	cakeCmd := fmt.Sprintf(
+		"CAKE_BOOTSTRAPIP=%s %s",
 		v.BootstrapIP,
-		fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType)))
+		fmt.Sprintf(
+			runLocalCakeCmd,
+			remoteExecutable,
+			string(v.EngineType),
+		),
+	)
 	log.Infof(cakeCmd)
 	tcp.runAsyncCommand(cakeCmd)
 
-	return err
+	return nil
 }
 
-func createConnectionToBootstrap(bootstrapVMIP string) (tcp, error) {
+func createConnectionToBootstrap(bootstrapVMIP, configYAML string) (tcp, error) {
 	var result tcp
 	var err error
 	var filename string
@@ -81,6 +109,16 @@ func createConnectionToBootstrap(bootstrapVMIP string) (tcp, error) {
 		return result, err
 	}
 	err = tcpUpload.uploadFile(filename)
+	if err != nil {
+		return result, err
+	}
+
+	// upload config file
+	tcpUpload, err = newTCPConn(bootstrapVMIP + ":" + uploadConfigPort)
+	if err != nil {
+		return result, err
+	}
+	err = tcpUpload.uploadFileFromString(configYAML)
 	if err != nil {
 		return result, err
 	}
@@ -145,5 +183,14 @@ func (t *tcp) uploadFile(srcFile string) error {
 		return errors.New("problem with transfer")
 	}
 
+	return nil
+}
+
+func (t *tcp) uploadFileFromString(fileContents string) error {
+	fi := strings.NewReader(fileContents)
+	_, err := io.Copy(*t.Conn, fi)
+	if err != nil {
+		return err
+	}
 	return nil
 }

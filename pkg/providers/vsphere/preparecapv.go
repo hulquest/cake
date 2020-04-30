@@ -7,21 +7,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Prepare bootstrap VM for rke deployment
-func (v *MgmtBootstrapRKE) Prepare() error {
-	err := v.createFolders()
-	if err != nil {
-		return err
-	}
-	configYAML, err := yaml.Marshal(v)
-	if err != nil {
-		return err
-	}
-	prereqs := `curl https://get.docker.com/ | bash`
-	v.Prerequisites = prereqs
-	return v.MgmtBootstrap.prepare(configYAML)
-}
-
 // Prepare bootstrap VM for capv deployment
 func (v *MgmtBootstrapCAPV) Prepare() error {
 	err := v.createFolders()
@@ -61,7 +46,9 @@ func (v *MgmtBootstrap) createFolders() error {
 		if err != nil {
 			return err
 		}
+		v.TrackedResources.addTrackedFolder(fromConfig)
 		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
+		v.Session.Folder = fromConfig[filepath.Base(v.Folder)]
 	} else {
 		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
 		if err != nil {
@@ -69,6 +56,7 @@ func (v *MgmtBootstrap) createFolders() error {
 		}
 		v.TrackedResources.addTrackedFolder(tempFolder)
 		v.Folder = tempFolder[mgmtFolder].InventoryPath
+		v.Session.Folder = tempFolder[mgmtFolder]
 	}
 	return nil
 }
