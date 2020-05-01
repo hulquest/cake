@@ -102,7 +102,7 @@ func runProvider() {
 	var clusterName string
 	var controlPlaneCount int
 	var workerCount int
-	var bootstrap providers.Bootstrap
+	var bootstrap providers.Bootstrapper
 	if deploymentType == "capv" {
 		vsProvider := new(vsphere.MgmtBootstrapCAPV)
 		errJ := viper.Unmarshal(&vsProvider)
