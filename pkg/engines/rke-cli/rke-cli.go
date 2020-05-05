@@ -1,21 +1,19 @@
 package rkecli
 
 import (
-	"bufio"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
-	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/netapp/cake/pkg/cmds"
 	"github.com/netapp/cake/pkg/config/events"
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engines"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,7 +87,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 			HostnameOverride: "",
 			User:             c.SSH.Username,
 			DockerSocket:     "/var/run/docker.sock",
-			SSHKeyPath:       "~/.ssh/id_rsa",
+			SSHKeyPath:       "/root/.ssh/id_rsa",
 			SSHCert:          "",
 			SSHCertPath:      "",
 			Labels:           make(map[string]string),
@@ -126,38 +124,16 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	// https://gist.github.com/hivefans/ffeaf3964924c943dd7ed83b406bbdea
-	cmd := exec.Command("rke", "up", "--config", yamlFile)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-
+	cmds.FileLogLocation = c.LogFile
+	args := []string{
+		"up",
+		"--config=/" + yamlFile,
 	}
-	err = cmd.Start()
+	err = cmds.GenericExecute(nil, "rke", args, nil)
 	if err != nil {
 		return err
 	}
-	r := bufio.NewReader(stdout)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
-	defer cancel()
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				line, _, _ := r.ReadLine()
-				lineStr := string(line)
-				log.Infoln(lineStr)
-				if strings.Contains(lineStr, "FATA") ||
-					strings.Contains(lineStr, "Finished") {
-					return
-				}
-			}
-		}
-	}(ctx)
 
-	err = cmd.Wait()
-	ctx.Done()
 	return err
 }
 

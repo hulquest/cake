@@ -7,12 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"strings"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

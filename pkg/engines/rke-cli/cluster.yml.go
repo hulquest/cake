@@ -1,7 +1,6 @@
 package rkecli
 
-var rawClusterYML =
-`# If you intened to deploy Kubernetes in an air-gapped environment,
+var rawClusterYML = `# If you intended to deploy Kubernetes in an air-gapped environment,
 # please consult the documentation on how to configure custom RKE images.
 nodes:
 - address: ""
@@ -15,7 +14,7 @@ nodes:
   user: rke
   docker_socket: /var/run/docker.sock
   ssh_key: ""
-  ssh_key_path: ~/.ssh/id_rsa
+  ssh_key_path: /root/.ssh/id_rsa
   ssh_cert: ""
   ssh_cert_path: ""
   labels: {}
@@ -121,7 +120,7 @@ system_images:
   ingress_backend: rancher/nginx-ingress-controller-defaultbackend:1.5-rancher1
   metrics_server: rancher/metrics-server:v0.3.6
   windows_pod_infra_container: rancher/kubelet-pause:v0.1.3
-ssh_key_path: ~/.ssh/id_rsa
+ssh_key_path: /root/.ssh/id_rsa
 ssh_cert_path: ""
 ssh_agent_auth: false
 authorization:
@@ -144,7 +143,7 @@ cluster_name: ""
 cloud_provider:
   name: ""
 prefix_path: ""
-addon_job_timeout: 0
+addon_job_timeout: 60
 bastion_host:
   address: ""
   port: ""

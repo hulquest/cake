@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// TODO dont use a global var, add this to the ctx
 // FileLogLocation to which we write all cmd stdout, stderr
 var FileLogLocation = "/dev/null"
 

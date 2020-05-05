@@ -33,12 +33,16 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 	if err != nil {
 		return err
 	}
-	tcp, err := createConnectionToBootstrap(bootstrapVMIP, string(configYAML))
+	err = uploadFilesToBootstrap(bootstrapVMIP, string(configYAML))
 	if err != nil {
 		return err
 	}
 
 	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType))
+	tcp, err := newTCPConn(bootstrapVMIP + ":" + commandPort)
+	if err != nil {
+		return err
+	}
 	tcp.runAsyncCommand(cakeCmd)
 
 	return err
@@ -47,9 +51,7 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 // Provision calls the process to create the management cluster for RKE
 func (v *MgmtBootstrapRKE) Provision() error {
 	var bootstrapVMIP string
-	if v.Nodes == nil {
-		v.Nodes = map[string]string{}
-	}
+	v.Nodes = map[string]string{}
 	for name, vm := range v.TrackedResources.VMs {
 		vmIP, err := GetVMIP(vm)
 		if err != nil {
@@ -71,53 +73,37 @@ func (v *MgmtBootstrapRKE) Provision() error {
 	if err != nil {
 		return err
 	}
-	tcp, err := createConnectionToBootstrap(bootstrapVMIP, string(configYAML))
+	err = uploadFilesToBootstrap(bootstrapVMIP, string(configYAML))
 	if err != nil {
 		return err
 	}
-	cakeCmd := fmt.Sprintf(
-		"CAKE_BOOTSTRAPIP=%s %s",
-		v.BootstrapIP,
-		fmt.Sprintf(
-			runLocalCakeCmd,
-			remoteExecutable,
-			string(v.EngineType),
-		),
-	)
-	log.Infof(cakeCmd)
-	tcp.runAsyncCommand(cakeCmd)
-
 	return nil
 }
 
-func createConnectionToBootstrap(bootstrapVMIP, configYAML string) (tcp, error) {
-	var result tcp
+func uploadFilesToBootstrap(bootstrapVMIP, configYAML string) error {
 	var err error
 
 	// TODO wait until the uploadPort is listening instead of the 30 sec sleep
 	time.Sleep(30 * time.Second)
 	tcpUpload, err := newTCPConn(bootstrapVMIP + ":" + uploadPort)
 	if err != nil {
-		return result, err
+		return err
 	}
 	err = tcpUpload.uploadFile(cakeLinuxBinaryPkgerLocation)
 	if err != nil {
-		return result, err
+		return err
 	}
 
 	// upload config file
 	tcpUpload, err = newTCPConn(bootstrapVMIP + ":" + uploadConfigPort)
 	if err != nil {
-		return result, err
+		return err
 	}
 	err = tcpUpload.uploadFileFromString(configYAML)
 	if err != nil {
-		return result, err
+		return err
 	}
-	// TODO wait until host prereqs are installed and ready
-	time.Sleep(30 * time.Second)
-	result, err = newTCPConn(bootstrapVMIP + ":" + commandPort)
-	return result, err
+	return err
 }
 
 func newTCPConn(serverAddr string) (tcp, error) {

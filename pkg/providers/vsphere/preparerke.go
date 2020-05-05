@@ -27,7 +27,7 @@ func (v *MgmtBootstrapRKE) Prepare() error {
 		return err
 	}
 	// TODO make prereqs less hacky than this
-	// v.Prerequisites = rkePrereqs
+	v.Prerequisites = fmt.Sprintf(rkePrereqs, v.SSH.Username)
 	return v.prepareRKE(configYAML)
 }
 
@@ -42,56 +42,16 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 	// TODO save ova templates to TrackedResources?
 	v.Session.Folder = mFolder
 
-	baseScript := fmt.Sprintf(`#!/bin/bash
-
-# engine specifc prereqs
-%s
-`, v.Prerequisites)
-
-	script := fmt.Sprintf(`#!/bin/bash
-
-# install socat, needed for TCP listeners
-wget -O /usr/local/bin/socat https://github.com/andrew-d/static-binaries/raw/master/binaries/linux/x86_64/socat
-chmod +x /usr/local/bin/socat
-
-# TCP listener for uploading cake binary
-%s
-
-# TCP listener for uploading cake binary
-%s
-
-# TCP listener for running cake binary
-%s
-
-# engine specific prereqs to run
-%s
-
-# write the generated private key to disk
-%s
-
-`, fmt.Sprintf(
-		uploadFileCmd,
-		uploadPort,
-		remoteExecutable,
-	),
-		fmt.Sprintf(
-			uploadFileCmd,
-			uploadConfigPort,
-			remoteConfigRoot,
-		),
-		fmt.Sprintf(
-			runRemoteCmd,
-			commandPort,
-		),
-		v.Prerequisites,
-		fmt.Sprintf(privateKeyToDisk, v.GeneratedKey.PrivateKey),
-	)
+	baseNodeScript := newNodeBaseScript(v.Prerequisites, string(v.EngineType)).ToString()
+	bootstrapperScript := newNodeBaseScript(v.Prerequisites, string(v.EngineType))
+	bootstrapperScript.MakeNodeBootstrapper()
+	bootstrapperScript.AddLines(rkeBinaryInstall,fmt.Sprintf(privateKeyToDisk, v.GeneratedKey.PrivateKey))
 
 	nodes := []cloneSpec{}
 	bootstrapNode := cloneSpec{
 		template:   ovas[v.OVA.NodeTemplate],
 		name:       fmt.Sprintf("%s1", rkeControlNodePrefix),
-		bootScript: script,
+		bootScript: bootstrapperScript.ToString(),
 		publicKey:  v.SSH.AuthorizedKeys,
 		osUser:     v.SSH.Username,
 	}
@@ -101,7 +61,7 @@ chmod +x /usr/local/bin/socat
 		spec := cloneSpec{
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
-			bootScript: baseScript,
+			bootScript: baseNodeScript,
 			publicKey:  v.SSH.AuthorizedKeys,
 			osUser:     v.SSH.Username,
 		}
@@ -112,7 +72,7 @@ chmod +x /usr/local/bin/socat
 		spec := cloneSpec{
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
-			bootScript: baseScript,
+			bootScript: baseNodeScript,
 			publicKey:  v.SSH.AuthorizedKeys,
 			osUser:     v.SSH.Username,
 		}
