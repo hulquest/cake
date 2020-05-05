@@ -73,3 +73,7 @@ tidy:  ## Clean up all go modules
 .PHONY: verify-no-efiles
 verify-no-efiles:  ## Validate no e-files exist
 	hack/check_for_efiles.sh
+
+.PHONY: clean-rke
+clean-rke:  ## Remove RKE machines
+	hack/rke-cleanup.sh
