@@ -19,6 +19,7 @@ func (b *baseScript) MakeNodeBootstrapper() {
 		bootstrapNodeCommandsHeader,
 		installSocatCmd,
 		fmt.Sprintf(uploadFileCmd, uploadPort, remoteExecutable),
+		fmt.Sprintf(uploadFileCmd, uploadConfigPort, remoteConfigRoot),
 		fmt.Sprintf(runRemoteCmd, commandPort),
 		b.script,
 	}
