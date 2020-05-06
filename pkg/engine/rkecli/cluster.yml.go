@@ -130,7 +130,7 @@ ignore_docker_version: false
 kubernetes_version: ""
 private_registries: []
 ingress:
-  provider: ""
+  provider: "nginx"
   options: {}
   node_selector: {}
   extra_args: {}
