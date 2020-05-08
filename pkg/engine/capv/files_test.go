@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func TestExtractLocalArchive(t *testing.T) {

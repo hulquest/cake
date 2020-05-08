@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/netapp/cake/pkg/config/cluster"
-	"github.com/netapp/cake/pkg/progress"
 )
 
 // Cluster interface for deploying K8s clusters
 type Cluster interface {
+	// Init enginer level logging
+	Init()
 	// CreateBootstrap sets up the boostrap cluster
 	CreateBootstrap() error
 	// InstallControlPlane puts the control plane on the boostrap cluster
@@ -23,7 +24,7 @@ type Cluster interface {
 	// RequiredCommands returns the command like binaries need to run the engine
 	RequiredCommands() []string
 	// Events are messages from the implementation
-	Events() chan progress.Event
+	Events() chan string
 }
 
 // MgmtCluster spec for the Engine
@@ -32,11 +33,12 @@ type MgmtCluster struct {
 	SSH               cluster.SSH    `yaml:"SSH" json:"ssh"`
 	Addons            cluster.Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
 	cluster.K8sConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
-	EventStream       chan progress.Event `yaml:"-" json:"-" mapstructure:"-"`
+	EventStream       chan string `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 // Run provider bootstrap process
 func Run(c Cluster) error {
+	c.Init()
 	exist := c.RequiredCommands()
 	if len(exist) > 0 {
 		return fmt.Errorf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))

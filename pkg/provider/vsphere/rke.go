@@ -2,8 +2,6 @@ package vsphere
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/netapp/cake/pkg/util/ssh"
 	"github.com/vmware/govmomi/object"
 	"gopkg.in/yaml.v3"
@@ -105,11 +103,7 @@ func (v *MgmtBootstrapRKE) Provision() error {
 			v.BootstrapIP = vmIP
 		}
 		v.Nodes[name] = vmIP
-		// TODO switch log message to eents on the eventstream chan
-		log.WithFields(log.Fields{
-			"nodeName": name,
-			"nodeIP":   vmIP,
-		}).Info("vm IP received")
+		log.Infof("IP received for %s: %s", name, vmIP)
 	}
 
 	configYAML, err := yaml.Marshal(v)

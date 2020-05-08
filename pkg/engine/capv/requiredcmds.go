@@ -1,6 +1,8 @@
 package capv
 
 import (
+	"github.com/netapp/cake/pkg/progress"
+	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/netapp/cake/pkg/util/cmd"
@@ -17,12 +19,21 @@ const (
 	tridentctl requiredCmd = "tridentctl"
 )
 
+var log *logrus.Logger
+
 // RequiredCommands for capv provisioner
 var RequiredCommands = cmd.ProvisionerCommands{Name: "required CAPV bootstrap commands"}
 
+// Init logging
+func (m MgmtCluster) Init() {
+	writer := progress.NewChanWriter(m.EventStream)
+	log = logrus.New()
+	log.Out = writer
+	log.SetFormatter(&progress.LogrusFormat{})
+}
+
 // RequiredCommands checks the PATH for required commands
 func (m MgmtCluster) RequiredCommands() []string {
-
 	if m.LogFile != "" {
 		cmd.FileLogLocation = m.LogFile
 		os.Truncate(m.LogFile, 0)

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -22,15 +23,16 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engine"
-	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/cmd"
 	"github.com/rancher/norman/clientbase"
 	rTypes "github.com/rancher/norman/types"
 	v3 "github.com/rancher/types/client/management/v3"
 	v3public "github.com/rancher/types/client/management/v3public"
 	v3project "github.com/rancher/types/client/project/v3"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log *logrus.Logger
 
 type requiredCmd string
 
@@ -49,7 +51,7 @@ func init() {
 // NewMgmtClusterFullConfig creates a new cluster interface with a full config from the client
 func NewMgmtClusterFullConfig() *MgmtCluster {
 	mc := &MgmtCluster{}
-	mc.EventStream = make(chan progress.Event)
+	mc.EventStream = make(chan string)
 	if mc.LogFile != "" {
 		cmd.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
@@ -61,7 +63,7 @@ func NewMgmtClusterFullConfig() *MgmtCluster {
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	EventStream             chan progress.Event
+	EventStream             chan string
 	engine.MgmtCluster      `yaml:",inline" mapstructure:",squash"`
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
@@ -108,6 +110,14 @@ func (c MgmtCluster) InstallAddons() error {
 	return nil
 }
 
+// Init logging
+func (c MgmtCluster) Init() {
+	writer := progress.NewChanWriter(c.EventStream)
+	log = logrus.New()
+	log.Out = writer
+	log.SetFormatter(&progress.LogrusFormat{})
+}
+
 // RequiredCommands provides validation for required commands
 func (c MgmtCluster) RequiredCommands() []string {
 	log.Infof("TODO: provide required commands")
@@ -116,7 +126,7 @@ func (c MgmtCluster) RequiredCommands() []string {
 
 // CreateBootstrap deploys a rancher container as single node RKE cluster
 func (c MgmtCluster) CreateBootstrap() error {
-	c.EventStream <- progress.Event{Type: "progress", Msg: "docker pull rancher"}
+	log.Info("docker pull rancher")
 	cli, err := c.dockerCli.NewEnvClient()
 	if err != nil {
 		log.Errorf("error encountered creating new docker client: %v\n", err)
@@ -182,7 +192,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
-	c.EventStream <- progress.Event{Type: "progress", Msg: "docker run rancher"}
+	log.Info("docker run rancher")
 	if err = c.dockerCli.ContainerStart(ctx, cli, resp.ID, types.ContainerStartOptions{}); err != nil {
 		log.Errorf("container start command returned an error: %v\n", err)
 		return err
@@ -204,14 +214,14 @@ func (c *MgmtCluster) InstallControlPlane() error {
 		dt.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 	}
 
-	c.EventStream <- progress.Event{Type: "progress", Msg: "wait for rancher API"}
+	log.Info("wait for rancher API")
 	err := waitForRancherAPI()
 	if err != nil {
 		log.Errorf("Recieved an error response from waitForRancherAPI: %v\n", err)
 		return err
 	}
 
-	c.EventStream <- progress.Event{Type: "progress", Msg: "configure standalone rancher"}
+	log.Info("configure standalone rancher")
 
 	// Roughly the sequence followed for single node rancher server config:
 	// https://forums.rancher.com/t/automating-rancher-2-x-installation-and-configuration/11454/2
@@ -406,7 +416,7 @@ func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 
 // CreatePermanent deploys HA RKE cluster to vSphere
 func (c *MgmtCluster) CreatePermanent() error {
-	c.EventStream <- progress.Event{Type: "progress", Msg: "configure RKE management cluster"}
+	log.Info("configure RKE management cluster")
 	// POST https://localhost/v3/cloudcredential
 	body := newVsphereCloudCredential(c.URL, c.Username, c.Password)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", body)
@@ -510,7 +520,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return err
 	}
 
-	c.EventStream <- progress.Event{Type: "progress", Msg: "waiting 15 minutes for RKE cluster to be ready"}
+	log.Info("waiting 15 minutes for RKE cluster to be ready")
 	err = c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 	if err != nil {
 		return err
@@ -532,7 +542,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	c.EventStream <- progress.Event{Type: "progress", Msg: "install production rancher server"}
+	log.Info("install production rancher server")
 
 	catalogReq := &v3.Catalog{
 		Branch:   "master",
@@ -611,7 +621,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 	rancherAppURL := appResp.Links["self"]
 	log.Infof("Rancher app URL: %s", rancherAppURL)
 
-	c.EventStream <- progress.Event{Type: "progress", Msg: "waiting 5 minutes for rancher server to be ready"}
+	log.Info("waiting 5 minutes for rancher server to be ready")
 	err = c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 	if err != nil {
 		return err
@@ -666,7 +676,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 }
 
 // Events returns the channel of progress messages
-func (c MgmtCluster) Events() chan progress.Event {
+func (c MgmtCluster) Events() chan string {
 	return c.EventStream
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi"
 )
 

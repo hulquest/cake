@@ -14,7 +14,6 @@ import (
 
 	"github.com/netapp/cake/pkg/engine/rke"
 	"github.com/netapp/cake/pkg/engine/rkecli"
-	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/provider"
 	"github.com/netapp/cake/pkg/provider/vsphere"
 
@@ -116,7 +115,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan progress.Event)
+		vsProvider.EventStream = make(chan string)
 		bootstrap = vsProvider
 	} else if deploymentType == "rke" {
 		vsProvider := new(vsphere.MgmtBootstrapRKE)
@@ -127,7 +126,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan progress.Event)
+		vsProvider.EventStream = make(chan string)
 		bootstrap = vsProvider
 	}
 
@@ -143,16 +142,9 @@ func runProvider() {
 		for {
 			select {
 			case evnt := <-cakeProgress:
-				switch evnt.Type {
-				case "checkpoint":
-					// update rest api
-				default:
-					e := evnt
-					log.WithFields(log.Fields{
-						"eventType": e.Type,
-						"progress":  e.Msg,
-					}).Info("progress received")
-				}
+				log.WithFields(log.Fields{
+					"message": evnt,
+				}).Info("progress received")
 			}
 		}
 	}()
@@ -185,7 +177,7 @@ func runEngine() {
 		controlPlaneCount = engine.ControlPlaneCount
 		workerCount = engine.WorkerCount
 		logFile = engine.LogFile
-		engine.EventStream = make(chan progress.Event)
+		engine.EventStream = make(chan string)
 		engineName = engine
 
 	} else if deploymentType == "rke" {
@@ -202,7 +194,7 @@ func runEngine() {
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			logFile = engine.LogFile
-			engine.EventStream = make(chan progress.Event)
+			engine.EventStream = make(chan string)
 			engineName = engine
 		} else {
 			engine := rkecli.NewMgmtClusterCli()
@@ -214,7 +206,7 @@ func runEngine() {
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
 			logFile = engine.LogFile
-			engine.EventStream = make(chan progress.Event)
+			engine.EventStream = make(chan string)
 			engineName = engine
 		}
 	} else {
@@ -252,16 +244,9 @@ func runEngine() {
 		for {
 			select {
 			case evnt := <-progress:
-				switch evnt.Type {
-				case "checkpoint":
-					// update rest api
-				default:
-					e := evnt
-					log.WithFields(log.Fields{
-						"eventType": e.Type,
-						"progress":  e.Msg,
-					}).Info("progress received")
-				}
+				log.WithFields(log.Fields{
+					"progress": evnt,
+				}).Info("progress received")
 			}
 		}
 	}()

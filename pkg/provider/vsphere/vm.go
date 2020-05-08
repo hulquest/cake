@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/netapp/cake/pkg/provider/vsphere/cloudinit"
-	log "github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
 	"golang.org/x/sync/errgroup"

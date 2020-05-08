@@ -2,21 +2,24 @@ package rkecli
 
 import (
 	"fmt"
-	"github.com/netapp/cake/pkg/config/vsphere"
-	"github.com/netapp/cake/pkg/engine"
 	"github.com/netapp/cake/pkg/progress"
-	"github.com/netapp/cake/pkg/util/cmd"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/netapp/cake/pkg/config/vsphere"
+	"github.com/netapp/cake/pkg/engine"
+	"github.com/netapp/cake/pkg/util/cmd"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"path/filepath"
-	"strings"
 )
+
+var log *logrus.Logger
 
 const (
 	defaultConfigPath  = "/rke-config.yml"
@@ -28,7 +31,7 @@ const (
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
 func NewMgmtClusterCli() *MgmtCluster {
 	mc := &MgmtCluster{}
-	mc.EventStream = make(chan progress.Event)
+	mc.EventStream = make(chan string)
 	if mc.LogFile != "" {
 		cmd.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
@@ -38,7 +41,7 @@ func NewMgmtClusterCli() *MgmtCluster {
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	EventStream             chan progress.Event
+	EventStream             chan string
 	engine.MgmtCluster      `yaml:",inline" mapstructure:",squash"`
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
@@ -52,6 +55,14 @@ type MgmtCluster struct {
 func (c MgmtCluster) InstallAddons() error {
 	log.Infof("TODO: install addons")
 	return nil
+}
+
+// Init logging
+func (c MgmtCluster) Init() {
+	writer := progress.NewChanWriter(c.EventStream)
+	log = logrus.New()
+	log.Out = writer
+	log.SetFormatter(&progress.LogrusFormat{})
 }
 
 // RequiredCommands provides validation for required commands
@@ -74,7 +85,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 
 // CreatePermanent deploys HA RKE cluster to provided nodes
 func (c *MgmtCluster) CreatePermanent() error {
-	c.EventStream <- progress.Event{Type: "progress", Msg: "install HA rke cluster"}
+	log.Info("install HA rke cluster")
 
 	if c.RKEConfigPath == "" {
 		log.Warnf("RKEConfigPath not provided in cake config, defaulting to %s", defaultConfigPath)
@@ -328,6 +339,6 @@ func (c MgmtCluster) PivotControlPlane() error {
 }
 
 // Events returns the channel of progress messages
-func (c MgmtCluster) Events() chan progress.Event {
+func (c MgmtCluster) Events() chan string {
 	return c.EventStream
 }

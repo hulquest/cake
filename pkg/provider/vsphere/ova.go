@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	pkgerrors "github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vmware/govmomi"

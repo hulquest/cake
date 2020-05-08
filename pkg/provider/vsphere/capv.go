@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-	log "github.com/sirupsen/logrus"
 )
 
 // Prepare bootstrap VM for capv deployment

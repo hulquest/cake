@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/cmd"
 )
 
@@ -40,7 +39,7 @@ func (m MgmtCluster) InstallAddons() error {
 }
 
 func installObservability(m *MgmtCluster) error {
-	m.EventStream <- progress.Event{Type: "progress", Msg: "installing the observability addon"}
+	log.Info("installing the observability addon")
 	var err error
 
 	//targetDir, err := extractLocalArchive(m, dir)
@@ -67,12 +66,12 @@ func installObservability(m *MgmtCluster) error {
 		make all
 	*/
 
-	m.EventStream <- progress.Event{Type: "progress", Msg: "observability addon install complete"}
+	log.Info("observability addon install complete")
 	return err
 }
 
 func installTrident(m *MgmtCluster) error {
-	m.EventStream <- progress.Event{Type: "progress", Msg: "installing the trident addon"}
+	log.Info("installing the trident addon")
 	var err error
 	home, err := homedir.Dir()
 	if err != nil {
@@ -129,7 +128,7 @@ func installTrident(m *MgmtCluster) error {
 	if err != nil {
 		return err
 	}
-	m.EventStream <- progress.Event{Type: "progress", Msg: "trident addon install complete"}
+	log.Info("trident addon install complete")
 	return err
 }
 

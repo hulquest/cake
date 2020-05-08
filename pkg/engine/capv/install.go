@@ -7,10 +7,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/netapp/cake/pkg/progress"
-
 	"github.com/netapp/cake/pkg/util/cmd"
-	log "github.com/sirupsen/logrus"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
@@ -47,7 +44,7 @@ func (m MgmtCluster) InstallControlPlane() error {
 		return err
 	}
 
-	m.EventStream <- progress.Event{Type: "progress", Msg: "init capi in the bootstrap cluster"}
+	log.Info("init capi in the bootstrap cluster")
 	nodeTemplate := strings.Split(filepath.Base(m.OVA.NodeTemplate), ".ova")[0]
 	LoadBalancerTemplate := strings.Split(filepath.Base(m.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
@@ -80,7 +77,7 @@ func (m MgmtCluster) InstallControlPlane() error {
 	// TODO wait for CAPv deployment in k8s to be ready
 	time.Sleep(30 * time.Second)
 
-	m.EventStream <- progress.Event{Type: "progress", Msg: "writing CAPv spec file out"}
+	log.Info("writing CAPv spec file out")
 	args = []string{
 		"config",
 		"cluster",

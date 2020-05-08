@@ -5,9 +5,12 @@ import (
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/provider"
+	"github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
 )
+
+var log *logrus.Logger
 
 // Session holds govmomi connection details
 type Session struct {
@@ -56,6 +59,14 @@ type MgmtBootstrapRKE struct {
 	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
+// Init logging
+func (v *MgmtBootstrap) Init() {
+	writer := progress.NewChanWriter(v.EventStream)
+	log = logrus.New()
+	log.Out = writer
+	log.SetFormatter(&progress.LogrusFormat{})
+}
+
 // Client setups connection to remote vCenter
 func (v *MgmtBootstrap) Client() error {
 	c, err := NewClient(v.URL, v.Username, v.Password)
@@ -100,7 +111,7 @@ func (v *MgmtBootstrap) Finalize() error {
 }
 
 // Events returns the channel of progress messages
-func (v *MgmtBootstrap) Events() chan progress.Event {
+func (v *MgmtBootstrap) Events() chan string {
 	return v.EventStream
 }
 
