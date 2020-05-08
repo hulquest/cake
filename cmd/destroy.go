@@ -15,7 +15,8 @@ var destroyCmd = &cobra.Command{
 	use it the same as you do deploy, but obviously instead
 	of setting up a deployment, it's going to destroy it.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Info("destroy called")
+		log.Error("destroy command is not implemented yet")
+		os.Exit(1)
 	},
 }
 
@@ -25,7 +26,4 @@ func init() {
 	destroyCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Location of cluster-spec directory cooresponding to the cluster to be destroyed, default is created at ~/.cake ")
 	destroyCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster to destroy, if specified without the -p option, will look for a spec.yml file in ~/.cake/<cluster-name>/")
 	destroyCmd.MarkFlagRequired("name")
-	log.Error("This is not the command that you're looking for")
-	os.Exit(1)
-
 }
