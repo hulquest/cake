@@ -11,6 +11,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0
+	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/gookit/color v1.2.4
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/manifoldco/promptui v0.7.0

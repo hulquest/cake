@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"runtime"
+	"time"
 
+	"github.com/dustinkirkland/golang-petname"
 	"github.com/gookit/color"
 	"github.com/netapp/cake/pkg/config/types"
 	"github.com/spf13/cobra"
@@ -14,47 +17,78 @@ import (
 )
 
 var (
-	red    = color.New(color.FgRed)
-	blue   = color.New(color.FgBlue)
-	green  = color.New(color.FgGreen)
-	yellow = color.New(color.FgYellow)
+	red         = color.New(color.FgRed)
+	blue        = color.New(color.FgBlue)
+	green       = color.New(color.FgGreen)
+	yellow      = color.New(color.FgYellow)
+	specPath    string
+	clusterSpec string
+	clusterName string
 )
-
-var configFile string
 
 // genconfigCmd represents the genconfig command
 var genconfigCmd = &cobra.Command{
 	Use:   "genconfig",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Create a cluster-spec via command line prompts",
+	Long: `genconfig provides an option to interactively create a cluster-spec file.  By default the 
+	spec file is placed in ~/.cake/<cluster-name>/spec.yml.  If no name is provides an auto generated
+	name will be used.
+  For example:
+	    "cake genconfig -n my-demo"
+  Will take interactive input from the user and create the file "~/.cake/my-demo/spe.yml"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runEasyConfig()
 	},
 }
 
 func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	genconfigCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Root directory to create cluster files in, default is ~/.cake")
+	genconfigCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name to assign to the cluster being created, if omitted a random name will be generated.")
+	cobra.OnInitialize(initSpecFile)
 	rootCmd.AddCommand(genconfigCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func initSpecFile() {
+	if clusterName == "" {
+		clusterName = petname.Generate(2, "-")
+		fmt.Printf("generated a cluster name:  %s\n", clusterName)
+	}
+	initSpecDir()
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// genconfigCmd.PersistentFlags().String("foo", "", "A help for foo")
+}
+func fileExists(fn string) bool {
+	_, err := os.Stat(fn)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// genconfigCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+func initSpecDir() {
+	if specPath == "" {
+		basePath := cakeBaseDirPath()
+		specPath = fmt.Sprintf("%s/%s", basePath, clusterName)
+	}
+
+	if _, err := os.Stat(specPath); os.IsNotExist(err) {
+		fmt.Printf("creating config directory: %s\n", specPath)
+		os.MkdirAll(specPath, 0700)
+	}
+	clusterSpec = fmt.Sprintf("%s/spec.yaml", specPath)
+	if fileExists(clusterSpec) {
+		fmt.Println("A cluster spec file already exists for the cluster-name specified, please use another name or delete the existing spec.yml file")
+		os.Exit(1)
+	}
+
 }
 
 func runEasyConfig() {
+	fmt.Printf("creating spec file based on user input: %s\n", clusterSpec)
 	var spec = &types.ConfigSpec{}
 	configure(spec)
-	writeConfig(spec)
+	writeSpec(spec)
 }
 
 func cakeBaseDirPath() string {
@@ -65,7 +99,7 @@ func cakeBaseDirPath() string {
 	return fmt.Sprintf("%s/.cake", os.Getenv("HOME"))
 }
 
-func writeConfig(spec *types.ConfigSpec) {
+func writeSpec(spec *types.ConfigSpec) {
 	var configOut []byte
 	var err error
 
@@ -75,39 +109,23 @@ func writeConfig(spec *types.ConfigSpec) {
 		log.Fatalln(err)
 	}
 
-	configFile := getConfigFile(spec.RegionName)
-
-	err = writeFile(configFile, configOut, 0644)
+	err = writeFile(clusterSpec, configOut, 0644)
 	if err != nil {
-		log.Println(fmt.Sprintf("Unable to save region config for later use, %s", err.Error()))
+		log.Println(fmt.Sprintf("Unable to save cluster spec file (%s), %s", clusterSpec, err.Error()))
 		return
 	}
 }
 
-func writeFile(configFile string, contents []byte, permissionCode os.FileMode) error {
+func writeFile(specFile string, contents []byte, permissionCode os.FileMode) error {
 	if permissionCode == 0 {
 		permissionCode = 0644
 	}
 
-	if err := ioutil.WriteFile(configFile, contents, permissionCode); err != nil {
+	if err := ioutil.WriteFile(specFile, contents, permissionCode); err != nil {
 		return fmt.Errorf("unable to write config file, %v", err)
 	}
 
 	return nil
-}
-
-func getConfigFile(regionName string) string {
-	if configFile != "" {
-		return configFile
-	}
-
-	if err := createConfigDirectory(regionName); err != nil {
-		log.Fatalf("Unable to create directory, %v", err)
-	}
-
-	basePath := cakeBaseDirPath()
-
-	return fmt.Sprintf("%s/%s/config.yaml", basePath, regionName)
 }
 
 func createConfigDirectory(directoryName string) error {
@@ -138,5 +156,5 @@ func configure(spec *types.ConfigSpec) {
 
 	collectNetworkInformation(spec)
 	collectAdditionalConfiguration(spec)
-	writeConfig(spec)
+	writeSpec(spec)
 }

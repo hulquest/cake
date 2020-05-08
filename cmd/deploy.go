@@ -26,8 +26,7 @@ import (
 )
 
 var (
-	logLevel string
-	//cfgFile                         string
+	logLevel                        string
 	controlPlaneMachineCount        int
 	workerMachineCount              int
 	controlPlaneMachineCountDefault = 1
@@ -62,6 +61,11 @@ func init() {
 	deployCmd.Flags().BoolVarP(&localDeploy, "local", "l", false, "Run the engine locally")
 	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
 	deployCmd.MarkFlagRequired("deployment-type")
+
+	deployCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Location of cake deployment files, default is ~/.cake/ ")
+	deployCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name to assign to the cluster being created, if omitted a random name will be generated (deploy expects to find a spec.yml file in <spec-path>/<name>/).")
+	deployCmd.MarkFlagRequired("name")
+
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		logInit()

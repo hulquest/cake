@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -8,13 +10,10 @@ import (
 // destroyCmd represents the destroy command
 var destroyCmd = &cobra.Command{
 	Use:   "destroy",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Destroy a previously deploy Cake install",
+	Long: `This doesn't exist yet, but when it does, you'll
+	use it the same as you do deploy, but obviously instead
+	of setting up a deployment, it's going to destroy it.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info("destroy called")
 	},
@@ -23,13 +22,10 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(destroyCmd)
 
-	// Here you will define your flags and configuration settings.
+	destroyCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Location of cluster-spec directory cooresponding to the cluster to be destroyed, default is created at ~/.cake ")
+	destroyCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster to destroy, if specified without the -p option, will look for a spec.yml file in ~/.cake/<cluster-name>/")
+	destroyCmd.MarkFlagRequired("name")
+	log.Error("This is not the command that you're looking for")
+	os.Exit(1)
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// destroyCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// destroyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
