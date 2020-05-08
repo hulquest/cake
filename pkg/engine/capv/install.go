@@ -10,6 +10,7 @@ import (
 	"github.com/netapp/cake/pkg/progress"
 
 	"github.com/netapp/cake/pkg/util/cmd"
+	log "github.com/sirupsen/logrus"
 )
 
 // InstallControlPlane installs CAPv CRDs into the temporary bootstrap cluster
@@ -42,7 +43,7 @@ func (m MgmtCluster) InstallControlPlane() error {
 	}
 	err = cmd.GenericExecute(envs, string(kubectl), args, nil)
 	if err != nil {
-		fmt.Printf("envs: %v\n", envs)
+		log.Errorf("failed to execute kubectl call (%s): %v", args, err)
 		return err
 	}
 

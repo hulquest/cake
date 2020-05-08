@@ -65,13 +65,13 @@ func (c MgmtCluster) RequiredCommands() []string {
 
 // CreateBootstrap is not needed for rkecli
 func (c MgmtCluster) CreateBootstrap() error {
-	log.Info("Nothing to do...")
+	log.Info("CreateBootstrap nothing to do...")
 	return nil
 }
 
 // InstallControlPlane helm installs rancher server
 func (c *MgmtCluster) InstallControlPlane() error {
-	log.Info("Nothing to do...")
+	log.Info("InstallControlPlan nothing to do...")
 	return nil
 }
 
@@ -91,6 +91,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	var y map[string]interface{}
 	err := yaml.Unmarshal([]byte(rawClusterYML), &y)
 	if err != nil {
+		log.Errorf("failed to unmarshall rawClusterYML: %v", err)
 		return err
 	}
 
@@ -134,10 +135,12 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 	clusterYML, err := yaml.Marshal(y)
 	if err != nil {
+		log.Errorf("failed to marshal node/key_path info to yaml: %v", err)
 		return err
 	}
 	err = ioutil.WriteFile(c.RKEConfigPath, clusterYML, 0644)
 	if err != nil {
+		log.Errorf("failed to write RKE Config(%s): %v", c.RKEConfigPath, err)
 		return err
 	}
 
@@ -148,6 +151,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 	}
 	err = cmd.GenericExecute(nil, "rke", args, nil)
 	if err != nil {
+		log.Errorf("failed to execute rke command: %v", err)
 		return err
 	}
 

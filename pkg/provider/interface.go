@@ -4,6 +4,7 @@ import (
 	"github.com/netapp/cake/pkg/config/cluster"
 	"github.com/netapp/cake/pkg/config/types"
 	"github.com/netapp/cake/pkg/progress"
+	log "github.com/sirupsen/logrus"
 )
 
 // Bootstrapper is the interface for creating infrastructure to run a cake engine against
@@ -33,22 +34,27 @@ type Spec struct {
 
 // Run provider bootstrap process
 func Run(b Bootstrapper) error {
+	log.Infoln("get bootstrapper client")
 	err := b.Client()
 	if err != nil {
 		return err
 	}
+	log.Infoln("prepare..")
 	err = b.Prepare()
 	if err != nil {
 		return err
 	}
+	log.Infoln("provision...")
 	err = b.Provision()
 	if err != nil {
 		return err
 	}
+	log.Infoln("progress...")
 	err = b.Progress()
 	if err != nil {
 		return err
 	}
+	log.Infoln("finalize...")
 	err = b.Finalize()
 	if err != nil {
 		return err

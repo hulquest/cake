@@ -131,8 +131,6 @@ func createConfigDirectory(directoryName string) error {
 }
 
 func configure(spec *types.ConfigSpec) {
-	fmt.Println(fmt.Sprintf("%s DHCP will be replaced in future versions with internal IP services or a third party IPAM provider\n", yellow.Render("Note:")))
-
 	// fail fast if we can't connect to specified vSphere
 	if err := collectVsphereInformation(spec); err != nil {
 		log.Fatalln(err)

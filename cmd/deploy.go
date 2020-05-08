@@ -146,7 +146,7 @@ func runProvider() {
 					e := evnt
 					log.WithFields(log.Fields{
 						"eventType": e.Type,
-						"progress":     e.Msg,
+						"progress":  e.Msg,
 					}).Info("progress received")
 				}
 			}
@@ -155,6 +155,7 @@ func runProvider() {
 
 	err := provider.Run(bootstrap)
 	if err != nil {
+		log.Error("error encountered during bootstrap")
 		log.Fatal(err.Error())
 	}
 	stop := time.Now()
@@ -218,7 +219,8 @@ func runEngine() {
 
 	file, err := os.Create(logFile)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("failed to create logfile: %v\n", err)
+		// For now we're doing this to keep  the http endpoints?
 		time.Sleep(24 * time.Hour)
 	}
 	defer file.Close()
@@ -253,7 +255,7 @@ func runEngine() {
 					e := evnt
 					log.WithFields(log.Fields{
 						"eventType": e.Type,
-						"progress":     e.Msg,
+						"progress":  e.Msg,
 					}).Info("progress received")
 				}
 			}
@@ -266,5 +268,6 @@ func runEngine() {
 	}
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
+	// For now we're doing this to keep  the http endpoints? Not sure we need this now?
 	time.Sleep(24 * time.Hour)
 }

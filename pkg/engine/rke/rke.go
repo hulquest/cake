@@ -119,6 +119,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	c.EventStream <- progress.Event{Type: "progress", Msg: "docker pull rancher"}
 	cli, err := c.dockerCli.NewEnvClient()
 	if err != nil {
+		log.Errorf("error encountered creating new docker client: %v\n", err)
 		return err
 	}
 
@@ -136,6 +137,7 @@ func (c MgmtCluster) CreateBootstrap() error {
 	}
 	err = c.osCli.GenericExecute(nil, string(docker), args, nil)
 	if err != nil {
+		log.Errorf("error encountered executing docker command: %v\n", err)
 		return err
 	}
 
@@ -151,11 +153,13 @@ func (c MgmtCluster) CreateBootstrap() error {
 
 	containerHTTPPort, err := nat.NewPort("tcp", "80")
 	if err != nil {
+		log.Errorf("error encountered while setting port 80 on container: %v\n", err)
 		return err
 	}
 
 	containerHTTPSPort, err := nat.NewPort("tcp", "443")
 	if err != nil {
+		log.Errorf("error encountered while setting port 443 on container: %v\n", err)
 		return err
 	}
 
@@ -174,11 +178,13 @@ func (c MgmtCluster) CreateBootstrap() error {
 		},
 	}, nil, "")
 	if err != nil {
+		log.Errorf("failed to create container: %v\n", err)
 		return err
 	}
 
 	c.EventStream <- progress.Event{Type: "progress", Msg: "docker run rancher"}
 	if err = c.dockerCli.ContainerStart(ctx, cli, resp.ID, types.ContainerStartOptions{}); err != nil {
+		log.Errorf("container start command returned an error: %v\n", err)
 		return err
 	}
 
@@ -201,6 +207,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	c.EventStream <- progress.Event{Type: "progress", Msg: "wait for rancher API"}
 	err := waitForRancherAPI()
 	if err != nil {
+		log.Errorf("Recieved an error response from waitForRancherAPI: %v\n", err)
 		return err
 	}
 
@@ -236,6 +243,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	var tokenResp v3public.Token
 	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
 	if err != nil {
+		log.Errorf("unable to decode tokenResp: %v\n", err)
 		return errors.New("Unable to decode tokenResp: " + err.Error())
 	}
 	c.token = tokenResp.Token
@@ -246,6 +254,7 @@ func (c *MgmtCluster) InstallControlPlane() error {
 		TokenKey: c.token,
 	})
 	if err != nil {
+		log.Errorf("unable to create rancher client: %v\n", err)
 		return errors.New("Unable to create rancher client: " + err.Error())
 	}
 
@@ -258,12 +267,14 @@ func (c *MgmtCluster) InstallControlPlane() error {
 
 	setting, err := c.rancherClient.Setting.ByID("server-url")
 	if err != nil {
+		log.Errorf("unable to get server-url setting: %v\n", err)
 		return errors.New("Unable to get server-url setting: " + err.Error())
 	}
 	log.Debugf("Server URL setting : %v+", setting)
 
 	setting, err = c.rancherClient.Setting.Update(setting, map[string]string{"name": "server-url", "value": "https://" + c.BootstrapIP})
 	if err != nil {
+		log.Errorf("unable to update server-url setting: %v\n", err)
 		return errors.New("Unable to update server-url setting: " + err.Error())
 	}
 	log.Infof("Server URL updated : %s", setting.Value)
