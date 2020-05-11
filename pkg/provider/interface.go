@@ -43,27 +43,27 @@ func Run(b Bootstrapper) error {
 	log.Out = writer
 	log.SetFormatter(&progress.LogrusFormat{})
 	b.Init()
-	log.Infoln("get bootstrapper client")
+	log.Info("Connecting to provider")
 	err := b.Client()
 	if err != nil {
 		return err
 	}
-	log.Infoln("prepare..")
+	log.Infoln("Preparing environment")
 	err = b.Prepare()
 	if err != nil {
 		return err
 	}
-	log.Infoln("provision...")
+	log.Infoln("Provisioning cluster")
 	err = b.Provision()
 	if err != nil {
 		return err
 	}
-	log.Infoln("progress...")
+	log.Infoln("Provision Progress")
 	err = b.Progress()
 	if err != nil {
 		return err
 	}
-	log.Infoln("finalize...")
+	log.Infoln("Finalizing")
 	err = b.Finalize()
 	if err != nil {
 		return err

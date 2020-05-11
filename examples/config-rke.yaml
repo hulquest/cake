@@ -8,8 +8,8 @@ Username: "administrator@vsphere.local"
 Password: "NetApp1!!"
 ClusterName: "rke-mgmt-cluster"
 KubernetesVersion: "v1.17.4-rancher1-3"
-ControlPlaneCount: "1"
-WorkerCount: "2"
+ControlPlaneCount: 1
+WorkerCount: 2
 LogFile: "/tmp/cake.log"
 OVA:
   NodeTemplate: "http://storage.googleapis.com/capv-images/release/v1.17.3/ubuntu-1804-kube-v1.17.3.ova"

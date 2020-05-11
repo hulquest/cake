@@ -118,7 +118,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 			Labels:           make(map[string]string),
 			Taints:           make([]rkeTaint, 0),
 		}
-		if strings.HasPrefix(k, "controlplane") {
+		if strings.HasPrefix(strings.ToLower(k), "controlplane") {
 			node.Role = append(node.Role, "controlplane")
 		} else {
 			node.Role = append(node.Role, "worker")

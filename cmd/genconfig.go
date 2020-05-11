@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"runtime"
@@ -13,7 +13,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/netapp/cake/pkg/config/types"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -21,9 +21,7 @@ var (
 	blue        = color.New(color.FgBlue)
 	green       = color.New(color.FgGreen)
 	yellow      = color.New(color.FgYellow)
-	specPath    string
 	clusterSpec string
-	clusterName string
 )
 
 // genconfigCmd represents the genconfig command
@@ -43,9 +41,6 @@ var genconfigCmd = &cobra.Command{
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-
-	genconfigCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Root directory to create cluster files in, default is ~/.cake")
-	genconfigCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name to assign to the cluster being created, if omitted a random name will be generated.")
 	cobra.OnInitialize(initSpecFile)
 	rootCmd.AddCommand(genconfigCmd)
 }
@@ -53,7 +48,7 @@ func init() {
 func initSpecFile() {
 	if clusterName == "" {
 		clusterName = petname.Generate(2, "-")
-		fmt.Printf("generated a cluster name:  %s\n", clusterName)
+		log.Infof("generated a cluster name:  %s\n", clusterName)
 	}
 	initSpecDir()
 
@@ -67,25 +62,22 @@ func fileExists(fn string) bool {
 }
 
 func initSpecDir() {
-	if specPath == "" {
-		basePath := cakeBaseDirPath()
-		specPath = fmt.Sprintf("%s/%s", basePath, clusterName)
-	}
-
+	basePath := cakeBaseDirPath()
+	specPath = fmt.Sprintf("%s/%s", basePath, clusterName)
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
-		fmt.Printf("creating config directory: %s\n", specPath)
+		log.Infof("creating config directory: %s\n", specPath)
 		os.MkdirAll(specPath, 0700)
-	}
-	clusterSpec = fmt.Sprintf("%s/spec.yaml", specPath)
-	if fileExists(clusterSpec) {
-		fmt.Println("A cluster spec file already exists for the cluster-name specified, please use another name or delete the existing spec.yml file")
-		os.Exit(1)
 	}
 
 }
 
 func runEasyConfig() {
-	fmt.Printf("creating spec file based on user input: %s\n", clusterSpec)
+
+	clusterSpec = fmt.Sprintf("%s/spec.yaml", specPath)
+	if fileExists(clusterSpec) {
+		log.Fatal("A cluster spec file already exists for the cluster-name specified, please use another name or delete the existing spec.yml file")
+	}
+	log.Infof("creating spec file based on user input: %s\n", clusterSpec)
 	var spec = &types.ConfigSpec{}
 	configure(spec)
 	writeSpec(spec)
@@ -93,10 +85,10 @@ func runEasyConfig() {
 
 func cakeBaseDirPath() string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("%s/.cake", os.Getenv("USERPROFILE"))
+		return fmt.Sprintf("%s/%s", os.Getenv("USERPROFILE"), defaultSpecDir)
 	}
 
-	return fmt.Sprintf("%s/.cake", os.Getenv("HOME"))
+	return fmt.Sprintf("%s/%s", os.Getenv("HOME"), defaultSpecDir)
 }
 
 func writeSpec(spec *types.ConfigSpec) {

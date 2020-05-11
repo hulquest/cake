@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -21,9 +19,15 @@ type settings struct {
 }
 
 var (
-	cliSettings settings
-	envSettings settings
-	cfgFile     string
+	cliSettings         settings
+	envSettings         settings
+	cfgFile             string
+	clusterName         string
+	specContents        []byte
+	specFile            string
+	specPath            string
+	defaultSpecFileName = "spec.yaml"
+	defaultSpecDir      = ".cake"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -40,13 +44,13 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Errorf("error executing command: %v", err)
-		os.Exit(1)
+		log.Fatalf("error executing command: %v", err)
 	}
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster, if unspecified will auto generate a directory in ~/.cake/")
 }
 
 // initConfig reads in config file and ENV variables if set.

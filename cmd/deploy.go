@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 
 	"github.com/netapp/cake/pkg/engine/rke"
 	"github.com/netapp/cake/pkg/engine/rkecli"
@@ -25,15 +25,9 @@ import (
 )
 
 var (
-	logLevel                        string
-	controlPlaneMachineCount        int
-	workerMachineCount              int
-	controlPlaneMachineCountDefault = 1
-	workerMachineCountDefault       = 2
-	logLevelDefault                 = "info"
-	appName                         = "cluster-engine"
-	deploymentType                  string
-	localDeploy                     bool
+	logLevel       string
+	deploymentType string
+	localDeploy    bool
 )
 
 var deployCmd = &cobra.Command{
@@ -41,6 +35,17 @@ var deployCmd = &cobra.Command{
 	Short: "Deploy a K8s CAPv or Rancher Management Cluster",
 	Long:  `CAPv deploy will create an upstream CAPv management cluster, the Rancher/RKE option will deploy an RKE cluster with Rancher Server`,
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
+		if specFile == "" {
+			specFile = filepath.Join(specPath, defaultSpecFileName)
+		}
+		if !fileExists(specFile) {
+			log.Fatalf("cluster spec file doesnt exist: %s\n", specFile)
+		}
+		specContents, err = ioutil.ReadFile(specFile)
+		if err != nil {
+			log.Fatalf("error reading config file (%s)", specFile)
+		}
 		if localDeploy {
 			runEngine()
 		} else {
@@ -59,12 +64,8 @@ type status struct {
 func init() {
 	deployCmd.Flags().BoolVarP(&localDeploy, "local", "l", false, "Run the engine locally")
 	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
+	deployCmd.PersistentFlags().StringVarP(&specFile, "spec-file", "f", "", "Location of cluster-spec file corresponding to the cluster, default is at ~/.cake/<cluster name>/spec.yaml")
 	deployCmd.MarkFlagRequired("deployment-type")
-
-	deployCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Location of cake deployment files, default is ~/.cake/ ")
-	deployCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name to assign to the cluster being created, if omitted a random name will be generated (deploy expects to find a spec.yml file in <spec-path>/<name>/).")
-	deployCmd.MarkFlagRequired("name")
-
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		logInit()
@@ -108,9 +109,9 @@ func runProvider() {
 	var bootstrap provider.Bootstrapper
 	if deploymentType == "capv" {
 		vsProvider := new(vsphere.MgmtBootstrapCAPV)
-		errJ := viper.Unmarshal(&vsProvider)
+		errJ := yaml.Unmarshal(specContents, &vsProvider)
 		if errJ != nil {
-			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 		}
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
@@ -119,9 +120,9 @@ func runProvider() {
 		bootstrap = vsProvider
 	} else if deploymentType == "rke" {
 		vsProvider := new(vsphere.MgmtBootstrapRKE)
-		errJ := viper.Unmarshal(&vsProvider)
+		errJ := yaml.Unmarshal(specContents, &vsProvider)
 		if errJ != nil {
-			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 		}
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
@@ -144,7 +145,7 @@ func runProvider() {
 			case evnt := <-cakeProgress:
 				log.WithFields(log.Fields{
 					"message": evnt,
-				}).Info("progress received")
+				}).Info("progress event")
 			}
 		}
 	}()
@@ -169,9 +170,9 @@ func runEngine() {
 
 	if deploymentType == "capv" {
 		engine := capv.MgmtCluster{}
-		errJ := viper.Unmarshal(&engine)
+		errJ := yaml.Unmarshal(specContents, &engine)
 		if errJ != nil {
-			log.Fatalf("unable to decode into struct, %v", errJ.Error())
+			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 		}
 		clusterName = engine.ClusterName
 		controlPlaneCount = engine.ControlPlaneCount
@@ -186,9 +187,9 @@ func runEngine() {
 		rkeDockerEnv := os.Getenv("CAKE_RKE_DOCKER")
 		if rkeDockerEnv != "" {
 			engine := rke.NewMgmtClusterFullConfig()
-			errJ := viper.Unmarshal(&engine)
+			errJ := yaml.Unmarshal(specContents, &engine)
 			if errJ != nil {
-				log.Fatalf("unable to decode into struct, %v", errJ.Error())
+				log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 			}
 			clusterName = engine.ClusterName
 			controlPlaneCount = engine.ControlPlaneCount
@@ -198,9 +199,9 @@ func runEngine() {
 			engineName = engine
 		} else {
 			engine := rkecli.NewMgmtClusterCli()
-			errJ := viper.Unmarshal(&engine)
+			errJ := yaml.Unmarshal(specContents, &engine)
 			if errJ != nil {
-				log.Fatalf("unable to decode into struct, %v", errJ.Error())
+				log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
 			}
 			clusterName = engine.ClusterName
 			controlPlaneCount = engine.ControlPlaneCount
@@ -246,7 +247,7 @@ func runEngine() {
 			case evnt := <-progress:
 				log.WithFields(log.Fields{
 					"progress": evnt,
-				}).Info("progress received")
+				}).Info("progress event")
 			}
 		}
 	}()

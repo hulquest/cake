@@ -118,7 +118,7 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 		return err
 	}
 
-	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType))
+	cakeCmd := fmt.Sprintf(runLocalCakeCmd, remoteExecutable, string(v.EngineType), remoteConfigRoot)
 	tcp, err := newTCPConn(bootstrapVMIP + ":" + commandPort)
 	if err != nil {
 		return err

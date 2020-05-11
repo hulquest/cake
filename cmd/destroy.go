@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"os"
-
 	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 )
 
@@ -15,15 +14,25 @@ var destroyCmd = &cobra.Command{
 	use it the same as you do deploy, but obviously instead
 	of setting up a deployment, it's going to destroy it.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Error("destroy command is not implemented yet")
-		os.Exit(1)
+		log.Fatal("destroy command is not implemented yet")
+		/*
+			var err error
+			if specFile == "" {
+				specFile = filepath.Join(specPath, defaultSpecFileName)
+			}
+			if !fileExists(specFile) {
+				fmt.Printf("cluster spec file doesnt exist: %s\n", specFile)
+				os.Exit(1)
+			}
+			specContents, err = ioutil.ReadFile(specFile)
+			if err != nil {
+				log.Fatalf("error reading config file (%s)", specFile)
+			}
+		*/
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(destroyCmd)
-
-	destroyCmd.PersistentFlags().StringVarP(&specPath, "spec-path", "p", "", "Location of cluster-spec directory cooresponding to the cluster to be destroyed, default is created at ~/.cake ")
-	destroyCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster to destroy, if specified without the -p option, will look for a spec.yml file in ~/.cake/<cluster-name>/")
-	destroyCmd.MarkFlagRequired("name")
+	destroyCmd.PersistentFlags().StringVarP(&specFile, "spec-file", "f", "", "Location of cluster-spec file corresponding to the cluster, default is at ~/.cake/<cluster name>/spec.yaml")
 }
