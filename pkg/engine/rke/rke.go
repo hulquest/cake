@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/netapp/cake/pkg/progress"
+
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -29,10 +30,7 @@ import (
 	v3 "github.com/rancher/types/client/management/v3"
 	v3public "github.com/rancher/types/client/management/v3public"
 	v3project "github.com/rancher/types/client/project/v3"
-	"github.com/sirupsen/logrus"
 )
-
-var log *logrus.Logger
 
 type requiredCmd string
 
@@ -50,8 +48,7 @@ func init() {
 
 // NewMgmtClusterFullConfig creates a new cluster interface with a full config from the client
 func NewMgmtClusterFullConfig() *MgmtCluster {
-	mc := &MgmtCluster{}
-	mc.EventStream = make(chan string)
+	mc := new(MgmtCluster)
 	if mc.LogFile != "" {
 		cmd.FileLogLocation = mc.LogFile
 		os.Truncate(mc.LogFile, 0)
@@ -63,7 +60,6 @@ func NewMgmtClusterFullConfig() *MgmtCluster {
 
 // MgmtCluster spec for RKE
 type MgmtCluster struct {
-	EventStream             chan string
 	engine.MgmtCluster      `yaml:",inline" mapstructure:",squash"`
 	vsphere.ProviderVsphere `yaml:",inline" mapstructure:",squash"`
 	token                   string
@@ -106,30 +102,39 @@ func (osCli) GenericExecute(envs map[string]string, name string, args []string, 
 
 // InstallAddons to HA RKE cluster
 func (c MgmtCluster) InstallAddons() error {
-	log.Infof("TODO: install addons")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "TODO: install addons",
+	})
 	return nil
-}
-
-// Init logging
-func (c MgmtCluster) Init() {
-	writer := progress.NewChanWriter(c.EventStream)
-	log = logrus.New()
-	log.Out = writer
-	log.SetFormatter(&progress.LogrusFormat{})
 }
 
 // RequiredCommands provides validation for required commands
 func (c MgmtCluster) RequiredCommands() []string {
-	log.Infof("TODO: provide required commands")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "TODO: provide required commands",
+	})
 	return nil
+}
+
+// Spec returns the Spec
+func (c *MgmtCluster) Spec() engine.MgmtCluster {
+	return c.MgmtCluster
 }
 
 // CreateBootstrap deploys a rancher container as single node RKE cluster
 func (c MgmtCluster) CreateBootstrap() error {
-	log.Info("docker pull rancher")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "docker pull rancher",
+	})
 	cli, err := c.dockerCli.NewEnvClient()
 	if err != nil {
-		log.Errorf("error encountered creating new docker client: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("error encountered creating new docker client: %v\n", err),
+		})
 		return err
 	}
 
@@ -147,7 +152,10 @@ func (c MgmtCluster) CreateBootstrap() error {
 	}
 	err = c.osCli.GenericExecute(nil, string(docker), args, nil)
 	if err != nil {
-		log.Errorf("error encountered executing docker command: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("error encountered executing docker command: %v\n", err),
+		})
 		return err
 	}
 
@@ -163,13 +171,20 @@ func (c MgmtCluster) CreateBootstrap() error {
 
 	containerHTTPPort, err := nat.NewPort("tcp", "80")
 	if err != nil {
-		log.Errorf("error encountered while setting port 80 on container: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("error encountered while setting port 80 on container: %v\n", err),
+		})
+
 		return err
 	}
 
 	containerHTTPSPort, err := nat.NewPort("tcp", "443")
 	if err != nil {
-		log.Errorf("error encountered while setting port 443 on container: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("error encountered while setting port 443 on container: %v\n", err),
+		})
 		return err
 	}
 
@@ -188,13 +203,22 @@ func (c MgmtCluster) CreateBootstrap() error {
 		},
 	}, nil, "")
 	if err != nil {
-		log.Errorf("failed to create container: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("failed to create container: %v\n", err),
+		})
 		return err
 	}
 
-	log.Info("docker run rancher")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "docker run rancher",
+	})
 	if err = c.dockerCli.ContainerStart(ctx, cli, resp.ID, types.ContainerStartOptions{}); err != nil {
-		log.Errorf("container start command returned an error: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("container start command returned an error: %v\n", err),
+		})
 		return err
 	}
 
@@ -214,14 +238,23 @@ func (c *MgmtCluster) InstallControlPlane() error {
 		dt.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 	}
 
-	log.Info("wait for rancher API")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "wait for rancher AP",
+	})
 	err := waitForRancherAPI()
 	if err != nil {
-		log.Errorf("Recieved an error response from waitForRancherAPI: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("Recieved an error response from waitForRancherAPI: %v\n", err),
+		})
 		return err
 	}
 
-	log.Info("configure standalone rancher")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "configure standalone rancher",
+	})
 
 	// Roughly the sequence followed for single node rancher server config:
 	// https://forums.rancher.com/t/automating-rancher-2-x-installation-and-configuration/11454/2
@@ -247,47 +280,80 @@ func (c *MgmtCluster) InstallControlPlane() error {
 	req, _ := http.NewRequest("POST", "https://localhost/v3-public/localProviders/local?action=login", bytes.NewBuffer(jsonBody))
 	req.Header.Add("x-api-csrf", "d1b2b5ebf8")
 	resp, _ := http.DefaultClient.Do(req)
-	log.Infof("Enabled local login")
-	log.Debugf("Enabled local login: %v+", resp)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Enabled local login",
+	})
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Enabled local login: %v+", resp),
+	})
 
 	var tokenResp v3public.Token
 	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
 	if err != nil {
-		log.Errorf("unable to decode tokenResp: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("unable to decode tokenResp: %v\n", err),
+		})
 		return errors.New("Unable to decode tokenResp: " + err.Error())
 	}
 	c.token = tokenResp.Token
-	log.Infof("Using token: %s", c.token)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Using token: %s", c.token),
+	})
 
 	c.rancherClient, err = v3.NewClient(&clientbase.ClientOpts{
 		URL:      "https://localhost/v3",
 		TokenKey: c.token,
 	})
 	if err != nil {
-		log.Errorf("unable to create rancher client: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("unable to create rancher client: %v\n", err),
+		})
 		return errors.New("Unable to create rancher client: " + err.Error())
 	}
 
-	log.Infof("Successfully created Rancher client")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Successfully created Rancher client",
+	})
 	keys := make([]string, len(c.rancherClient.Types))
 	for k := range c.rancherClient.Types {
 		keys = append(keys, k)
 	}
-	log.Debugf("Schema Types: %v", keys)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Schema Types: %v", keys),
+	})
 
 	setting, err := c.rancherClient.Setting.ByID("server-url")
 	if err != nil {
-		log.Errorf("unable to get server-url setting: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("unable to get server-url setting: %v\n", err),
+		})
 		return errors.New("Unable to get server-url setting: " + err.Error())
 	}
-	log.Debugf("Server URL setting : %v+", setting)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Server URL setting : %v+", setting),
+	})
 
 	setting, err = c.rancherClient.Setting.Update(setting, map[string]string{"name": "server-url", "value": "https://" + c.BootstrapIP})
 	if err != nil {
-		log.Errorf("unable to update server-url setting: %v\n", err)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("unable to update server-url setting: %v\n", err),
+		})
 		return errors.New("Unable to update server-url setting: " + err.Error())
 	}
-	log.Infof("Server URL updated : %s", setting.Value)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Server URL updated : %s", setting.Value),
+	})
 
 	return nil
 }
@@ -416,35 +482,50 @@ func newVsphereNodeTemplate(ccID, datacenter, datastore, folder, pool string, ne
 
 // CreatePermanent deploys HA RKE cluster to vSphere
 func (c *MgmtCluster) CreatePermanent() error {
-	log.Info("configure RKE management cluster")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "configure RKE management cluster",
+	})
 	// POST https://localhost/v3/cloudcredential
 	body := newVsphereCloudCredential(c.URL, c.Username, c.Password)
 	resp, err := c.makeHTTPRequest("POST", "https://localhost/v3/cloudcredential", body)
 	if err != nil {
 		return err
 	}
-	log.Info("Created vsphere cloud cred")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Created vsphere cloud cred",
+	})
 	var credResp v3.CloudCredential
 	err = json.NewDecoder(resp.Body).Decode(&credResp)
 	if err != nil {
 		return errors.New("unable to decode cloud cred response: " + err.Error())
 	}
 	cloudCredID := credResp.ID
-	log.Infof("Cloud cred ID: %v", cloudCredID)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Cloud cred ID: %v", cloudCredID),
+	})
 
 	nodeTemplate := newVsphereNodeTemplate(cloudCredID, c.Datacenter, c.Datastore, c.Folder, c.ResourcePool, []string{c.ManagementNetwork})
 	resp, err = c.makeHTTPRequest("POST", "https://localhost/v3/nodetemplate", nodeTemplate)
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created node template: %v+", resp)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Created node template: %v+", resp),
+	})
 	var nodeTemplateResp v3.NodeTemplate
 	err = json.NewDecoder(resp.Body).Decode(&nodeTemplateResp)
 	if err != nil {
 		return err
 	}
 	nodeTemplateID := nodeTemplateResp.ID
-	log.Infof("Node template ID: %v+", nodeTemplateID)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Node template ID: %v+", nodeTemplateID),
+	})
 
 	clusterReq := &v3.Cluster{
 		DockerRootDir:           "/var/lib/docker",
@@ -510,17 +591,26 @@ func (c *MgmtCluster) CreatePermanent() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Created cluster")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Created cluster",
+	})
 	clusterID := clusterResp.ID
 	c.clusterURL = clusterResp.Links["self"]
-	log.Infof("Cluster ID: %v+", clusterID)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Cluster ID: %v+", clusterID),
+	})
 
 	err = c.createNodePools(clusterID, nodeTemplateID)
 	if err != nil {
 		return err
 	}
 
-	log.Info("waiting 15 minutes for RKE cluster to be ready")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "waiting 15 minutes for RKE cluster to be ready",
+	})
 	err = c.waitForCondition(c.clusterURL, "type", "Ready", 15)
 	if err != nil {
 		return err
@@ -542,7 +632,10 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 // PivotControlPlane deploys rancher server via helm chart to HA RKE cluster
 func (c MgmtCluster) PivotControlPlane() error {
-	log.Info("install production rancher server")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "install production rancher server",
+	})
 
 	catalogReq := &v3.Catalog{
 		Branch:   "master",
@@ -556,7 +649,10 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Info("Added rancher helm chart")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Added rancher helm chart",
+	})
 
 	err = c.waitForCondition(catalogResp.Links["self"], "type", "Refreshed", 2)
 
@@ -566,13 +662,19 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Info("Got all projects")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Got all projects",
+	})
 	for _, proj := range projCollectionResp.Data {
 		if proj.Name == "Default" {
 			defaultProj = proj
 		}
 	}
-	log.Infof("Got default project ID: %s", defaultProj.ID)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Got default project ID: %s", defaultProj.ID),
+	})
 
 	projSplit := strings.Split(defaultProj.ID, ":")
 	pID := projSplit[1]
@@ -581,7 +683,11 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Got default namespace")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Got default namespace"),
+	})
+
 	result := make(map[string]interface{})
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -594,7 +700,10 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Updated default namespace")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Updated default namespace",
+	})
 
 	appName := "rancher"
 	appReq := &v3project.App{
@@ -614,14 +723,23 @@ func (c MgmtCluster) PivotControlPlane() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Deployed rancher server via helm")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "Deployed rancher server via helm",
+	})
 
 	var appResp v3project.App
 	err = json.NewDecoder(resp.Body).Decode(&appResp)
 	rancherAppURL := appResp.Links["self"]
-	log.Infof("Rancher app URL: %s", rancherAppURL)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Rancher app URL: %s", rancherAppURL),
+	})
 
-	log.Info("waiting 5 minutes for rancher server to be ready")
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "waiting 5 minutes for rancher server to be ready",
+	})
 	err = c.waitForCondition(rancherAppURL, "type", "Deployed", 5)
 	if err != nil {
 		return err
@@ -643,7 +761,10 @@ func (c MgmtCluster) PivotControlPlane() error {
 			break
 		}
 	}
-	log.Infof("Rancher app workload ID: %s", rWorkload.ID)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Rancher app workload ID: %s", rWorkload.ID),
+	})
 
 	if err = waitForAvailable(func() []v3project.DeploymentCondition {
 		resp, _ := c.makeHTTPRequest("GET", rWorkload.Links["self"], nil)
@@ -671,12 +792,16 @@ func (c MgmtCluster) PivotControlPlane() error {
 		}
 	}
 
-	log.Infof("Rancher is available: https://%s", rancherAddr)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("Rancher is available: https://%s", rancherAddr),
+	})
+
 	return nil
 }
 
 // Events returns the channel of progress messages
-func (c MgmtCluster) Events() chan string {
+func (c MgmtCluster) Events() progress.Events {
 	return c.EventStream
 }
 
@@ -694,15 +819,21 @@ func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMin
 				result := make(map[string]interface{})
 				err := json.NewDecoder(resp.Body).Decode(&result)
 				if err != nil {
-					log.Warnf(err.Error())
+					c.EventStream.Publish(&progress.StatusEvent{
+						Type: "progress",
+						Msg:  err.Error(),
+					})
 				}
 				if conditions, ok := result["conditions"].([]interface{}); ok {
-					for _, c := range conditions {
-						cMap := c.(map[string]interface{})
+					for _, cs := range conditions {
+						cMap := cs.(map[string]interface{})
 						condition := cMap[key].(string)
 						_, ok := cReceived[condition]
 						if !ok {
-							log.Infof("Received a new condition: %s", condition)
+							c.EventStream.Publish(&progress.StatusEvent{
+								Type: "progress",
+								Msg:  fmt.Sprintf("Received a new condition: %s", condition),
+							})
 							cReceived[condition] = struct{}{}
 						}
 						if condition == val {
@@ -711,7 +842,10 @@ func (c MgmtCluster) waitForCondition(resourceURL, key, val string, timeoutInMin
 					}
 				}
 			}
-			log.Info("Waiting for resource...")
+			c.EventStream.Publish(&progress.StatusEvent{
+				Type: "progress",
+				Msg:  "Waiting for resource...",
+			})
 		}
 	}
 }
@@ -730,7 +864,6 @@ func waitForAvailable(cFunc func() []v3project.DeploymentCondition) error {
 					return nil
 				}
 			}
-			log.Info("Waiting for available...")
 		}
 	}
 }
@@ -776,7 +909,11 @@ func (c MgmtCluster) createNodePools(clusterID, nodeTemplateID string) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Created node pool: ", nodePoolResp.HostnamePrefix)
+		c.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   fmt.Sprintf("Created node pool: %v", nodePoolResp.HostnamePrefix),
+			Level: "info",
+		})
 	}
 	return nil
 }
@@ -796,9 +933,12 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 	req.Header.Add("Authorization", "Bearer "+c.token)
 	dump, err := httputil.DumpRequestOut(req, true)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	log.Debugf("HTTP request: %q", dump)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("HTTP request: %q", dump),
+	})
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return resp, err
@@ -809,7 +949,10 @@ func (c MgmtCluster) makeHTTPRequest(method, url string, payload interface{}) (*
 		return resp, err
 	}
 
-	log.Debugf("HTTP response: %q", dump)
+	c.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  fmt.Sprintf("HTTP response: %q", dump),
+	})
 	return resp, err
 }
 
@@ -823,13 +966,13 @@ func waitForRancherAPI() error {
 		case <-tick:
 			resp, err := http.DefaultClient.Get("https://localhost")
 			if err != nil {
-				log.Debugf("Ignoring error getting URL: %s", err)
+				//log.Debugf("Ignoring error getting URL: %s", err)
 			}
 			if resp != nil {
 				if resp.StatusCode != http.StatusOK {
-					log.Debugf("Ignoring unsuccessful HTTP response from Rancher API: %v+", resp)
+					//log.Debugf("Ignoring unsuccessful HTTP response from Rancher API: %v+", resp)
 				} else {
-					log.Info("Rancher API is responding")
+					//log.Info("Rancher API is responding")
 					// TODO: Figure out if this is still required
 					time.Sleep(time.Second * 5)
 					return nil

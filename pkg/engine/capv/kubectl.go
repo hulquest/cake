@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"time"
 
 	"github.com/netapp/cake/pkg/util/cmd"
@@ -13,7 +14,7 @@ import (
 )
 
 // kubeRetry runs `kubectl` commands where the output doesnt need to be parsed or saved
-func kubeRetry(envs map[string]string, args []string, timeout time.Duration, grepString string, grepCount int, ctx *context.Context, es chan string) error {
+func kubeRetry(envs map[string]string, args []string, timeout time.Duration, grepString string, grepCount int, ctx *context.Context, es progress.Events) error {
 	var err error
 
 	c := cmd.NewCommandLine(envs, string(kubectl), args, ctx)
@@ -25,7 +26,11 @@ func kubeRetry(envs map[string]string, args []string, timeout time.Duration, gre
 		for {
 			select {
 			case e := <-eventChan:
-				es <- e
+				es.Publish(&progress.StatusEvent{
+					Type:  "progress",
+					Msg:   e,
+					Level: "info",
+				})
 			case <-done:
 				break
 			}

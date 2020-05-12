@@ -3,6 +3,7 @@ package capv
 import (
 	"context"
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"path/filepath"
 
 	"github.com/mitchellh/go-homedir"
@@ -39,7 +40,10 @@ func (m MgmtCluster) InstallAddons() error {
 }
 
 func installObservability(m *MgmtCluster) error {
-	log.Info("installing the observability addon")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "installing the observability addon",
+	})
 	var err error
 
 	//targetDir, err := extractLocalArchive(m, dir)
@@ -66,12 +70,18 @@ func installObservability(m *MgmtCluster) error {
 		make all
 	*/
 
-	log.Info("observability addon install complete")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "observability addon install complete",
+	})
 	return err
 }
 
 func installTrident(m *MgmtCluster) error {
-	log.Info("installing the trident addon")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "installing the trident addon",
+	})
 	var err error
 	home, err := homedir.Dir()
 	if err != nil {
@@ -128,7 +138,10 @@ func installTrident(m *MgmtCluster) error {
 	if err != nil {
 		return err
 	}
-	log.Info("trident addon install complete")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "trident addon install complete",
+	})
 	return err
 }
 

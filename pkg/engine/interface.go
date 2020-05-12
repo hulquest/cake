@@ -2,15 +2,16 @@ package engine
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/netapp/cake/pkg/config/cluster"
 )
 
 // Cluster interface for deploying K8s clusters
 type Cluster interface {
-	// Init enginer level logging
-	Init()
 	// CreateBootstrap sets up the boostrap cluster
 	CreateBootstrap() error
 	// InstallControlPlane puts the control plane on the boostrap cluster
@@ -24,24 +25,41 @@ type Cluster interface {
 	// RequiredCommands returns the command like binaries need to run the engine
 	RequiredCommands() []string
 	// Events are messages from the implementation
-	Events() chan string
+	Events() progress.Events
+	// Spec returns the spec for the interface
+	Spec() MgmtCluster
 }
 
 // MgmtCluster spec for the Engine
 type MgmtCluster struct {
-	LogFile           string         `yaml:"LogFile" json:"logfile"`
-	SSH               cluster.SSH    `yaml:"SSH" json:"ssh"`
-	Addons            cluster.Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
-	cluster.K8sConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
-	EventStream       chan string `yaml:"-" json:"-" mapstructure:"-"`
+	LogFile                 string         `yaml:"LogFile" json:"logfile"`
+	SSH                     cluster.SSH    `yaml:"SSH" json:"ssh"`
+	Addons                  cluster.Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
+	cluster.K8sConfig       `yaml:",inline" json:",inline" mapstructure:",squash"`
+	EventStream             progress.Events `yaml:"-" json:"-" mapstructure:"-"`
+	ProgressEndpointEnabled bool            `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 // Run provider bootstrap process
 func Run(c Cluster) error {
-	c.Init()
+	spec := c.Spec()
+	if spec.ProgressEndpointEnabled {
+		defer progress.ServeDuration()
+		defer progress.UpdateProgressComplete(true)
+		go progress.Serve(
+			spec.LogFile,
+			filepath.Join(filepath.Dir(spec.LogFile), "kubeconfig"),
+			"8081",
+			c.Events(),
+		)
+	}
+	// TODO poll for the endpoints to be up or something similar before starting to send messages
+	// progress.Serve needs just a couple seconds to subscribe to the events msgs
+	time.Sleep(3 * time.Second)
 	exist := c.RequiredCommands()
 	if len(exist) > 0 {
-		return fmt.Errorf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))
+		errMsg := fmt.Sprintf("the following commands were not found in $PATH: [%v]", strings.Join(exist, ", "))
+		return fmt.Errorf(errMsg)
 	}
 
 	err := c.CreateBootstrap()
@@ -67,6 +85,9 @@ func Run(c Cluster) error {
 	err = c.InstallAddons()
 	if err != nil {
 		return err
+	}
+	if spec.ProgressEndpointEnabled {
+		progress.UpdateProgressCompletedSuccessfully(true)
 	}
 
 	return nil

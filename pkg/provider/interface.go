@@ -4,15 +4,10 @@ import (
 	"github.com/netapp/cake/pkg/config/cluster"
 	"github.com/netapp/cake/pkg/config/types"
 	"github.com/netapp/cake/pkg/progress"
-	"github.com/sirupsen/logrus"
 )
-
-var log *logrus.Logger
 
 // Bootstrapper is the interface for creating infrastructure to run a cake engine against
 type Bootstrapper interface {
-	// Init interface level logging
-	Init()
 	// Client setups up any client connections to remote provider
 	Client() error
 	// Prepare setups up any needed infrastructure
@@ -24,46 +19,63 @@ type Bootstrapper interface {
 	// Finalize saves any deliverables and removes any created bootstrap infrastructure
 	Finalize() error
 	// Events are status messages from the implementation
-	Events() chan string
+	Events() progress.Events
 }
 
 // Spec for the Provider
 type Spec struct {
 	cluster.K8sConfig `yaml:",inline" json:",inline" mapstructure:",squash"`
-	EventStream       chan string      `yaml:"-" json:"-" mapstructure:"-"`
+	EventStream       progress.Events  `yaml:"-" json:"-" mapstructure:"-"`
 	EngineType        types.EngineType `yaml:"EngineType" json:"enginetype"`
 	LogFile           string           `yaml:"LogFile" json:"logfile"`
 	SSH               cluster.SSH      `yaml:"SSH" json:"ssh"`
+	BootstrapperIP    string           `yaml:"-" json:"-" mapstructure:"-"`
 }
 
 // Run provider bootstrap process
 func Run(b Bootstrapper) error {
-	writer := progress.NewChanWriter(b.Events())
-	log = logrus.New()
-	log.Out = writer
-	log.SetFormatter(&progress.LogrusFormat{})
-	b.Init()
-	log.Info("Connecting to provider")
+	log := b.Events()
+	log.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Connecting to provider",
+		Level: "info",
+	})
 	err := b.Client()
 	if err != nil {
 		return err
 	}
-	log.Infoln("Preparing environment")
+	log.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Preparing environment",
+		Level: "info",
+	})
 	err = b.Prepare()
 	if err != nil {
 		return err
 	}
-	log.Infoln("Provisioning cluster")
+	log.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Provisioning cluster",
+		Level: "info",
+	})
 	err = b.Provision()
 	if err != nil {
 		return err
 	}
-	log.Infoln("Provision Progress")
+	log.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Provision Progress",
+		Level: "info",
+	})
 	err = b.Progress()
 	if err != nil {
 		return err
 	}
-	log.Infoln("Finalizing")
+	log.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   "Finalizing",
+		Level: "info",
+	})
 	err = b.Finalize()
 	if err != nil {
 		return err

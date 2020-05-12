@@ -1,16 +1,18 @@
 package vsphere
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/netapp/cake/pkg/config/cluster"
 	vsphereConfig "github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/provider"
-	"github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/object"
+	"io/ioutil"
+	"net/http"
+	"time"
 )
-
-var log *logrus.Logger
 
 // Session holds govmomi connection details
 type Session struct {
@@ -59,14 +61,6 @@ type MgmtBootstrapRKE struct {
 	GeneratedKey  GeneratedKey      `yaml:"-" json:"-" mapstructure:"-"`
 }
 
-// Init logging
-func (v *MgmtBootstrap) Init() {
-	writer := progress.NewChanWriter(v.EventStream)
-	log = logrus.New()
-	log.Out = writer
-	log.SetFormatter(&progress.LogrusFormat{})
-}
-
 // Client setups connection to remote vCenter
 func (v *MgmtBootstrap) Client() error {
 	c, err := NewClient(v.URL, v.Username, v.Password)
@@ -99,6 +93,38 @@ func (v *MgmtBootstrap) Client() error {
 // Progress monitors the of the management cluster bootstrapping process
 func (v *MgmtBootstrap) Progress() error {
 	var err error
+	var completedSuccessfully bool
+	var respStruct progress.Status
+	var progressMessages []string
+	var msgLen int
+
+	for {
+		resp, err := http.Get("http://" + v.BootstrapperIP + ":8081/progress")
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		responseData, _ := ioutil.ReadAll(resp.Body)
+		json.Unmarshal(responseData, &respStruct)
+		currentProgressMessages := respStruct.Messages
+		msgLen = len(progressMessages)
+		for x := msgLen; x < len(currentProgressMessages); x++ {
+			v.EventStream.Publish(&progress.StatusEvent{
+				Type:  "progress",
+				Msg:   respStruct.Messages[x],
+				Level: "info",
+			})
+			progressMessages = append(progressMessages, respStruct.Messages[x])
+		}
+		if respStruct.Complete {
+			completedSuccessfully = respStruct.CompletedSuccessfully
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if !completedSuccessfully {
+		err = fmt.Errorf("didnt complete successfully")
+	}
 
 	return err
 }
@@ -111,7 +137,7 @@ func (v *MgmtBootstrap) Finalize() error {
 }
 
 // Events returns the channel of progress messages
-func (v *MgmtBootstrap) Events() chan string {
+func (v *MgmtBootstrap) Events() progress.Events {
 	return v.EventStream
 }
 

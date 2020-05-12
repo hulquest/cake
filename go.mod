@@ -16,6 +16,11 @@ require (
 	github.com/kr/pretty v0.2.0 // indirect
 	github.com/manifoldco/promptui v0.7.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/nats-io/gnatsd v1.4.1 // indirect
+	github.com/nats-io/go-nats v1.7.2
+	github.com/nats-io/nats-server v1.4.1
+	github.com/nats-io/nats-server/v2 v2.1.6 // indirect
+	github.com/nats-io/nats.go v1.9.2
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
 	github.com/rancher/norman v0.0.0-20190821234528-20a936b685b0
@@ -26,7 +31,6 @@ require (
 	github.com/vmware/govmomi v0.22.2
 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
-	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71
 	k8s.io/api v0.18.0
 	k8s.io/apimachinery v0.17.2

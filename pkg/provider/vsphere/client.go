@@ -16,7 +16,7 @@ import (
 func NewClient(server string, username string, password string) (*Session, error) {
 	sm := new(Session)
 	ctx := context.TODO()
-	log.Debug("Creating new govmomi client")
+	//log.Debug("Creating new govmomi client")
 	if !strings.HasPrefix(server, "https://") && !strings.HasPrefix(server, "http://") {
 		server = "https://" + server
 	}

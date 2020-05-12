@@ -116,7 +116,7 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 
 	spec.Config.DeviceChange = deviceSpecs
 
-	log.Debugf("cloning %s with spec: %+v", name, spec)
+	// log.Debugf("cloning %s with spec: %+v", name, spec)
 	task, err := template.Clone(ctx, s.Folder, name, spec)
 	if err != nil {
 		return nil, fmt.Errorf("unable to clone template, %v", err)
@@ -137,7 +137,7 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 		return nil, fmt.Errorf("reconfigure task failed, %v", err)
 	}
 
-	log.Debugf("powering on %s", name)
+	// log.Debugf("powering on %s", name)
 	task, err = vm.PowerOn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to power on VM, %v", err)
@@ -161,7 +161,7 @@ func DeleteVM(vm *object.VirtualMachine) error {
 		return err
 	}
 	if !exists {
-		log.Debugf("VM %s not found, will not delete", vm.InventoryPath)
+		// log.Debugf("VM %s not found, will not delete", vm.InventoryPath)
 		return nil
 	}
 
@@ -173,7 +173,7 @@ func DeleteVM(vm *object.VirtualMachine) error {
 
 	// Cancel running tasks, if any
 	if len(vmTasks) > 0 {
-		log.Debugf("Found %d tasks for VM %s", len(vmTasks), vm.InventoryPath)
+		// log.Debugf("Found %d tasks for VM %s", len(vmTasks), vm.InventoryPath)
 		err = cancelRunningTasks(vm.Client(), vmTasks)
 		if err != nil {
 			return fmt.Errorf("could not cancel tasks for vm %s, %v", vm.InventoryPath, err)
@@ -184,19 +184,19 @@ func DeleteVM(vm *object.VirtualMachine) error {
 			// Note that there does not seem to be an API to wait for the cancel task to finish and VM to disappear
 			maxTries := 10
 			for tryCount := 0; tryCount < maxTries; tryCount++ {
-				log.Debugf("Checking if VM %s exists after cancelling creation task", vm.InventoryPath)
+				// log.Debugf("Checking if VM %s exists after cancelling creation task", vm.InventoryPath)
 				exists, err = vmExists(vm)
 				if err != nil {
-					log.Errorf("Could not check if VM %s exists", vm.InventoryPath)
+					// log.Errorf("Could not check if VM %s exists", vm.InventoryPath)
 				}
 				if err == nil && !exists {
 					// VM has gone away
-					log.Debugf("VM %s deleted after cancelling creation task", vm.InventoryPath)
+					// log.Debugf("VM %s deleted after cancelling creation task", vm.InventoryPath)
 					return nil
 				}
 				time.Sleep(2 * time.Second)
 			}
-			log.Debugf("Wait for VM %s to be deleted after cancelling creation task timed out", vm.InventoryPath)
+			// log.Debugf("Wait for VM %s to be deleted after cancelling creation task timed out", vm.InventoryPath)
 		}
 	}
 
@@ -206,7 +206,7 @@ func DeleteVM(vm *object.VirtualMachine) error {
 		return err
 	}
 	if !exists {
-		log.Debugf("VM %s not found, will not delete", vm.InventoryPath)
+		// log.Debugf("VM %s not found, will not delete", vm.InventoryPath)
 		return nil
 	}
 
@@ -216,7 +216,7 @@ func DeleteVM(vm *object.VirtualMachine) error {
 	}
 
 	if powerState != types.VirtualMachinePowerStatePoweredOff {
-		log.Debugf("Powering off VM %s", vm.InventoryPath)
+		// log.Debugf("Powering off VM %s", vm.InventoryPath)
 		task, err := vm.PowerOff(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to power off virtual machine %s, %v", vm.InventoryPath, err)
@@ -227,7 +227,7 @@ func DeleteVM(vm *object.VirtualMachine) error {
 		}
 	}
 
-	log.Debugf("Deleting VM %s", vm.InventoryPath)
+	// log.Debugf("Deleting VM %s", vm.InventoryPath)
 	task, err := vm.Destroy(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to destroy virtual machine %s, %v", vm.InventoryPath, err)
@@ -250,7 +250,7 @@ func GetVMIP(vm *object.VirtualMachine) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	log.Debugf("Waiting for vm to receive ip on interface %s, timeout %s", nic, timeout)
+	// log.Debugf("Waiting for vm to receive ip on interface %s, timeout %s", nic, timeout)
 	macToIPMap, err := vm.WaitForNetIP(ctx, true, nic)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {

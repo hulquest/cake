@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

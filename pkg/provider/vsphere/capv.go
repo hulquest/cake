@@ -2,10 +2,18 @@ package vsphere
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
+
+// NewMgmtBootstrapCAPV is a new rke provider
+func NewMgmtBootstrapCAPV(full *MgmtBootstrapCAPV) *MgmtBootstrapCAPV {
+	r := new(MgmtBootstrapCAPV)
+	r = full
+	return r
+}
 
 // Prepare bootstrap VM for capv deployment
 func (v *MgmtBootstrapCAPV) Prepare() error {
@@ -107,7 +115,11 @@ func (v *MgmtBootstrapCAPV) Provision() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("bootstrap VM IP: %v", bootstrapVMIP)
+	v.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   fmt.Sprintf("bootstrap VM IP: %v", bootstrapVMIP),
+		Level: "info",
+	})
 
 	configYAML, err := yaml.Marshal(v)
 	if err != nil {

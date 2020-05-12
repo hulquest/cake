@@ -41,7 +41,7 @@ func (b *baseScript) ToString() string {
 	result := []string{
 		baseScriptHeader,
 		b.script,
-		fmt.Sprintf(runCake, remoteConfigRoot, fmt.Sprintf(runLocalCakeCmd, remoteExecutable, b.deploymentType, remoteConfigRoot)),
+		fmt.Sprintf(runCake, remoteConfigRoot, remoteExecutable, fmt.Sprintf(runLocalCakeCmd, remoteExecutable, b.deploymentType, remoteConfigRoot)),
 	}
 	return strings.Join(result, "\n")
 }

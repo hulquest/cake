@@ -8,21 +8,22 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/nats-io/nats.go"
 	"github.com/netapp/cake/pkg/engine"
+	"github.com/netapp/cake/pkg/progress"
 	v3 "github.com/rancher/types/client/management/v3"
-	"github.com/sirupsen/logrus"
 	"os"
 	"reflect"
 	"testing"
 )
 
 func TestMain(m *testing.M) {
-	log = logrus.New()
 	code := m.Run()
 	os.Exit(code)
 }
 
 func TestMgmtCluster_CreateBootstrap(t *testing.T) {
+	t.Skip("skipping test, need to re-evaluate if this engine is needed.")
 	tests := []struct {
 		name    string
 		docker  dockerCmds
@@ -39,7 +40,6 @@ func TestMgmtCluster_CreateBootstrap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := MgmtCluster{
 				MgmtCluster:   engine.MgmtCluster{},
-				EventStream:   make(chan string),
 				token:         "",
 				clusterURL:    "",
 				rancherClient: nil,
@@ -302,8 +302,9 @@ func (m mockOSCmds) GenericExecute(envs map[string]string, name string, args []s
 }
 
 func mockEventsReceiver(c MgmtCluster) {
-	for {
-		e := <-c.Events()
-		fmt.Printf("progress: %s\n", e)
+	c.EventStream, _ = progress.NewNatsPubSub(nats.DefaultURL, "test")
+	fn := func(p *progress.StatusEvent) {
+		fmt.Printf("progress: %v\n", p)
 	}
+	c.Events().Subscribe(fn)
 }

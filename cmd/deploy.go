@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/nats-io/go-nats"
+	"github.com/netapp/cake/pkg/progress"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/netapp/cake/pkg/provider"
 	"github.com/netapp/cake/pkg/provider/vsphere"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/netapp/cake/pkg/engine"
 	"github.com/netapp/cake/pkg/engine/capv"
 	log "github.com/sirupsen/logrus"
@@ -25,9 +23,10 @@ import (
 )
 
 var (
-	logLevel       string
-	deploymentType string
-	localDeploy    bool
+	logLevel                string
+	deploymentType          string
+	localDeploy             bool
+	progressEndpointEnabled bool
 )
 
 var deployCmd = &cobra.Command{
@@ -46,6 +45,10 @@ var deployCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("error reading config file (%s)", specFile)
 		}
+		err = progress.RunServer()
+		if err != nil {
+			log.Fatalf("error starting events server: %v", err)
+		}
 		if localDeploy {
 			runEngine()
 		} else {
@@ -54,61 +57,32 @@ var deployCmd = &cobra.Command{
 	},
 }
 
-var responseBody *status
-
-type status struct {
-	Complete bool     `json:"complete"`
-	Messages []string `json:"messages"`
-}
-
 func init() {
 	deployCmd.Flags().BoolVarP(&localDeploy, "local", "l", false, "Run the engine locally")
+	deployCmd.Flags().BoolVarP(&progressEndpointEnabled, "progress", "p", false, "Serve progress from HTTP endpoint")
 	deployCmd.Flags().StringVarP(&deploymentType, "deployment-type", "d", "", "The type of deployment to create (capv, rke)")
 	deployCmd.PersistentFlags().StringVarP(&specFile, "spec-file", "f", "", "Location of cluster-spec file corresponding to the cluster, default is at ~/.cake/<cluster name>/spec.yaml")
 	deployCmd.MarkFlagRequired("deployment-type")
+	deployCmd.Flags().MarkHidden("progress")
 	rootCmd.AddCommand(deployCmd)
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		logInit()
 		return nil
 	}
 
-	responseBody = new(status)
-	responseBody.Messages = []string{}
 }
 
 func logInit() {
 	log.SetOutput(os.Stdout)
 }
 
-func getResponseData() status {
-	return *responseBody
-}
-
-func serveProgress(logfile string, kubeconfig string) {
-	http.HandleFunc("/progress", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(responseBody)
-	})
-	http.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
-		logs, _ := ioutil.ReadFile(logfile)
-		fmt.Fprintf(w, string(logs))
-	})
-	http.HandleFunc("/kubeconfig", func(w http.ResponseWriter, r *http.Request) {
-		kconfig, _ := ioutil.ReadFile(kubeconfig)
-		if len(kconfig) == 0 {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		fmt.Fprintf(w, string(kconfig))
-	})
-	log.Fatal(http.ListenAndServe(":8081", nil))
-}
-
 func runProvider() {
-	var clusterName string
+	var err error
 	var controlPlaneCount int
 	var workerCount int
 	var bootstrap provider.Bootstrapper
 	if deploymentType == "capv" {
-		vsProvider := new(vsphere.MgmtBootstrapCAPV)
+		vsProvider := vsphere.NewMgmtBootstrapCAPV(new(vsphere.MgmtBootstrapCAPV))
 		errJ := yaml.Unmarshal(specContents, &vsProvider)
 		if errJ != nil {
 			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
@@ -116,10 +90,13 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan string)
+		vsProvider.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
+		if err != nil {
+			log.Fatalf("unable to connect to events server: %v", err)
+		}
 		bootstrap = vsProvider
 	} else if deploymentType == "rke" {
-		vsProvider := new(vsphere.MgmtBootstrapRKE)
+		vsProvider := vsphere.NewMgmtBootstrapRKE(new(vsphere.MgmtBootstrapRKE))
 		errJ := yaml.Unmarshal(specContents, &vsProvider)
 		if errJ != nil {
 			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
@@ -127,7 +104,10 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
-		vsProvider.EventStream = make(chan string)
+		vsProvider.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
+		if err != nil {
+			log.Fatalf("unable to connect to events server: %v", err)
+		}
 		bootstrap = vsProvider
 	}
 
@@ -138,23 +118,26 @@ func runProvider() {
 		"ControlPlaneMachineCount": controlPlaneCount,
 		"workerMachineCount":       workerCount,
 	}).Info("Let's launch a cluster")
-	cakeProgress := bootstrap.Events()
-	go func() {
-		for {
-			select {
-			case evnt := <-cakeProgress:
-				log.WithFields(log.Fields{
-					"message": evnt,
-				}).Info("progress event")
-			}
-		}
-	}()
+	status := bootstrap.Events()
 
-	err := provider.Run(bootstrap)
+	fn := func(p *progress.StatusEvent) {
+		log.WithFields(p.ToLogrusFields()).Info("progress event")
+	}
+	// this is an async method
+	err = status.Subscribe(fn)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	err = provider.Run(bootstrap)
 	if err != nil {
 		log.Error("error encountered during bootstrap")
 		log.Fatal(err.Error())
 	}
+
+	// TODO dont do this
+	// wait a few seconds for all events to come through before ending
+	time.Sleep(5 * time.Second)
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
 }
@@ -162,14 +145,14 @@ func runProvider() {
 func runEngine() {
 	// TODO dont log.Fatal, need the http endpoints to stay alive
 
-	var clusterName string
+	var err error
 	var controlPlaneCount int
 	var workerCount int
 	var logFile string
 	var engineName engine.Cluster
 
 	if deploymentType == "capv" {
-		engine := capv.MgmtCluster{}
+		engine := capv.NewMgmtClusterCAPV()
 		errJ := yaml.Unmarshal(specContents, &engine)
 		if errJ != nil {
 			log.Fatalf("unable to parse config (%s), %v", specFile, errJ.Error())
@@ -177,8 +160,12 @@ func runEngine() {
 		clusterName = engine.ClusterName
 		controlPlaneCount = engine.ControlPlaneCount
 		workerCount = engine.WorkerCount
+		engine.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
+		if err != nil {
+			log.Fatalf("unable to connect to events server: %v", err)
+		}
 		logFile = engine.LogFile
-		engine.EventStream = make(chan string)
+		engine.ProgressEndpointEnabled = progressEndpointEnabled
 		engineName = engine
 
 	} else if deploymentType == "rke" {
@@ -194,8 +181,12 @@ func runEngine() {
 			clusterName = engine.ClusterName
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
+			engine.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
+			if err != nil {
+				log.Fatalf("unable to connect to events server: %v", err)
+			}
 			logFile = engine.LogFile
-			engine.EventStream = make(chan string)
+			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		} else {
 			engine := rkecli.NewMgmtClusterCli()
@@ -206,8 +197,12 @@ func runEngine() {
 			clusterName = engine.ClusterName
 			controlPlaneCount = engine.ControlPlaneCount
 			workerCount = engine.WorkerCount
+			engine.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
+			if err != nil {
+				log.Fatalf("unable to connect to events server: %v", err)
+			}
 			logFile = engine.LogFile
-			engine.EventStream = make(chan string)
+			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		}
 	} else {
@@ -225,13 +220,6 @@ func runEngine() {
 	mw := io.MultiWriter(os.Stdout, file)
 	log.SetOutput(mw)
 
-	home, errH := homedir.Dir()
-	if errH != nil {
-		log.Fatalf(errH.Error())
-	}
-	kubeconfigLocation := filepath.Join(home, capv.ConfigDir, clusterName, "kubeconfig")
-	go serveProgress(logFile, kubeconfigLocation)
-
 	start := time.Now()
 	log.Info("Welcome to Mission Control")
 	log.WithFields(log.Fields{
@@ -239,18 +227,15 @@ func runEngine() {
 		"ControlPlaneMachineCount": controlPlaneCount,
 		"workerMachineCount":       workerCount,
 	}).Info("Let's launch a cluster")
-	progress := engineName.Events()
+	status := engineName.Events()
 
-	go func() {
-		for {
-			select {
-			case evnt := <-progress:
-				log.WithFields(log.Fields{
-					"progress": evnt,
-				}).Info("progress event")
-			}
-		}
-	}()
+	fn := func(p *progress.StatusEvent) {
+		log.WithFields(p.ToLogrusFields()).Info("progress event")
+	}
+	err = status.Subscribe(fn)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
 
 	err = engine.Run(engineName)
 	if err != nil {
@@ -258,6 +243,4 @@ func runEngine() {
 	}
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
-	// For now we're doing this to keep  the http endpoints? Not sure we need this now?
-	time.Sleep(24 * time.Hour)
 }

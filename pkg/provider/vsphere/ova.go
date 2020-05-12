@@ -302,7 +302,7 @@ func (h *handler) openRemote(link string) (io.ReadCloser, int64, error) {
 
 func removeNICs(ctx context.Context, vm *object.VirtualMachine) error {
 
-	log.Debugf("Removing NICs from VM %s (%s)", vm.InventoryPath, vm.Reference())
+	//log.Debugf("Removing NICs from VM %s (%s)", vm.InventoryPath, vm.Reference())
 
 	vmProps, err := getProperties(vm)
 	if err != nil {
@@ -314,7 +314,7 @@ func removeNICs(ctx context.Context, vm *object.VirtualMachine) error {
 
 	if len(nicDevices) == 0 {
 		// Nothing to do
-		log.Debugf("No NIC devices to remove on VM %s (%s)", vm.InventoryPath, vm.Reference())
+		//log.Debugf("No NIC devices to remove on VM %s (%s)", vm.InventoryPath, vm.Reference())
 		return nil
 	}
 

@@ -2,6 +2,7 @@ package capv
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"time"
 
 	"github.com/netapp/cake/pkg/util/cmd"
@@ -10,7 +11,10 @@ import (
 // CreateBootstrap creates the temporary CAPv bootstrap cluster
 func (m MgmtCluster) CreateBootstrap() error {
 	var err error
-	log.Info("kind create cluster (bootstrap cluster)")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "kind create cluster (bootstrap cluster)",
+	})
 
 	args := []string{
 		"create",
@@ -21,7 +25,10 @@ func (m MgmtCluster) CreateBootstrap() error {
 		return err
 	}
 
-	log.Info("getting and writing bootstrap cluster kubeconfig to disk")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "getting and writing bootstrap cluster kubeconfig to disk",
+	})
 	args = []string{
 		"get",
 		"kubeconfig",
@@ -38,7 +45,10 @@ func (m MgmtCluster) CreateBootstrap() error {
 	}
 
 	// TODO wait for cluster components to be running
-	log.Info("sleeping 20 seconds, need to fix this")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "sleeping 20 seconds, need to fix this",
+	})
 	time.Sleep(20 * time.Second)
 
 	return err

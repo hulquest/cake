@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"os"
 	"testing"
 
@@ -77,7 +76,6 @@ func shutdown() {
 }
 
 func TestMain(m *testing.M) {
-	log = logrus.New()
 	setupSimulator()
 	code := m.Run()
 	shutdown()

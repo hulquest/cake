@@ -2,10 +2,18 @@ package vsphere
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/ssh"
 	"github.com/vmware/govmomi/object"
 	"gopkg.in/yaml.v3"
 )
+
+// NewMgmtBootstrapRKE is a new rke provider
+func NewMgmtBootstrapRKE(full *MgmtBootstrapRKE) *MgmtBootstrapRKE {
+	r := new(MgmtBootstrapRKE)
+	r = full
+	return r
+}
 
 // Prepare bootstrap VM for rke deployment
 func (v *MgmtBootstrapRKE) Prepare() error {
@@ -101,9 +109,14 @@ func (v *MgmtBootstrapRKE) Provision() error {
 		if name == fmt.Sprintf("%s1", rkeControlNodePrefix) {
 			bootstrapVMIP = vmIP
 			v.BootstrapIP = vmIP
+			v.BootstrapperIP = vmIP
 		}
 		v.Nodes[name] = vmIP
-		log.Infof("IP received for %s: %s", name, vmIP)
+		v.EventStream.Publish(&progress.StatusEvent{
+			Type:  "progress",
+			Msg:   fmt.Sprintf("IP received for %s: %s", name, vmIP),
+			Level: "info",
+		})
 	}
 
 	configYAML, err := yaml.Marshal(v)

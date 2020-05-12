@@ -34,7 +34,7 @@ func vmExists(vm *object.VirtualMachine) (bool, error) {
 	}
 	// Have to verify that this is the same VM, a new instance may have taken its place at the same path
 	if vm.Reference() != foundVM.Reference() {
-		log.Debugf("VM managed object reference mismatch for %s: want %v, found %v", vm.InventoryPath, vm.Reference(), foundVM.Reference())
+		//log.Debugf("VM managed object reference mismatch for %s: want %v, found %v", vm.InventoryPath, vm.Reference(), foundVM.Reference())
 		return false, nil
 	}
 	return true, nil
@@ -69,11 +69,11 @@ func cancelRunningTasks(client *vim25.Client, taskInfos []vim25types.TaskInfo) e
 
 		if taskInfo.State != vim25types.TaskInfoStateRunning && taskInfo.State != vim25types.TaskInfoStateQueued {
 			// Don't need to cancel task
-			log.Debugf("Ignoring task %s %s on entity %s, state: %s", taskInfo.Key, taskInfo.DescriptionId, taskInfo.EntityName, taskInfo.State)
+			//log.Debugf("Ignoring task %s %s on entity %s, state: %s", taskInfo.Key, taskInfo.DescriptionId, taskInfo.EntityName, taskInfo.State)
 			continue
 		}
 
-		log.Debugf("Cancelling task %s %s for entity %s, state %s", taskInfo.Key, taskInfo.DescriptionId, taskInfo.EntityName, taskInfo.State)
+		//log.Debugf("Cancelling task %s %s for entity %s, state %s", taskInfo.Key, taskInfo.DescriptionId, taskInfo.EntityName, taskInfo.State)
 		err := object.NewTask(client, taskInfo.Task).Cancel(ctx)
 		if err != nil {
 			return errors.Wrapf(err, "could not cancel task %s %s for entity %s, state %s", taskInfo.Key, taskInfo.DescriptionId, taskInfo.EntityName, taskInfo.State)

@@ -2,6 +2,7 @@ package capv
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/progress"
 	"path/filepath"
 	"strings"
 	"time"
@@ -40,11 +41,18 @@ func (m MgmtCluster) InstallControlPlane() error {
 	}
 	err = cmd.GenericExecute(envs, string(kubectl), args, nil)
 	if err != nil {
-		log.Errorf("failed to execute kubectl call (%s): %v", args, err)
+		m.EventStream.Publish(&progress.StatusEvent{
+			Type: "progress",
+			Msg:  fmt.Sprintf("failed to execute kubectl call (%s): %v", args, err),
+		})
+
 		return err
 	}
 
-	log.Info("init capi in the bootstrap cluster")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "init capi in the bootstrap cluster",
+	})
 	nodeTemplate := strings.Split(filepath.Base(m.OVA.NodeTemplate), ".ova")[0]
 	LoadBalancerTemplate := strings.Split(filepath.Base(m.OVA.LoadbalancerTemplate), ".ova")[0]
 	envs = map[string]string{
@@ -77,7 +85,10 @@ func (m MgmtCluster) InstallControlPlane() error {
 	// TODO wait for CAPv deployment in k8s to be ready
 	time.Sleep(30 * time.Second)
 
-	log.Info("writing CAPv spec file out")
+	m.EventStream.Publish(&progress.StatusEvent{
+		Type: "progress",
+		Msg:  "writing CAPv spec file out",
+	})
 	args = []string{
 		"config",
 		"cluster",

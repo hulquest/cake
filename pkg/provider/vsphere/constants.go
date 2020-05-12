@@ -27,14 +27,19 @@ chmod +x /usr/local/bin/socat`
 	runCake string = `# wait until cake.yaml exists on disk and then run cake command
 until [[ $(stat -c%%s "%s" 2>/dev/null) > 0 ]]
 do
-	echo "waiting for config file"
+	echo "waiting for config file to exist"
 	sleep 2
 done
-sleep 5
+until (%s >/dev/null 2>&1);
+do
+    echo "waiting for cake binary to be ready to run"
+    sleep 2
+done
+sleep 2
 %s & disown`
 	uploadFileCmd                string = "socat -u TCP-LISTEN:%s,fork CREATE:%s,group=root,perm=0755 & disown"
 	runRemoteCmd                 string = "socat TCP-LISTEN:%s,reuseaddr,fork EXEC:'/bin/bash -li',pty,setsid,setpgid,stderr,ctty & disown"
-	runLocalCakeCmd              string = "%s deploy --local --deployment-type %s --spec-file %s > /tmp/cake.out"
+	runLocalCakeCmd              string = "%s deploy --local --deployment-type %s --spec-file %s --progress > /tmp/cake.out"
 	cakeLinuxBinaryPkgerLocation string = "/cake-linux-embedded"
 	capvClusterctlVersion        string = "v0.3.3"
 	capvKindVersion              string = "v0.7.0"
