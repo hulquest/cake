@@ -81,6 +81,11 @@ func runProvider() {
 	var controlPlaneCount int
 	var workerCount int
 	var bootstrap provider.Bootstrapper
+
+	// TODO dont do this
+	// wait a few seconds for all events to come through before ending
+	defer time.Sleep(5 * time.Second)
+
 	if deploymentType == "capv" {
 		vsProvider := vsphere.NewMgmtBootstrapCAPV(new(vsphere.MgmtBootstrapCAPV))
 		errJ := yaml.Unmarshal(specContents, &vsProvider)
@@ -135,9 +140,7 @@ func runProvider() {
 		log.Fatal(err.Error())
 	}
 
-	// TODO dont do this
-	// wait a few seconds for all events to come through before ending
-	time.Sleep(5 * time.Second)
+
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
 }
