@@ -76,6 +76,12 @@ func logInit() {
 	log.SetOutput(os.Stdout)
 }
 
+func delay() {
+	for x := 1; x <= 5; x++ {
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func runProvider() {
 	var err error
 	var controlPlaneCount int
@@ -84,7 +90,7 @@ func runProvider() {
 
 	// TODO dont do this
 	// wait a few seconds for all events to come through before ending
-	defer time.Sleep(5 * time.Second)
+	defer delay()
 
 	if deploymentType == "capv" {
 		vsProvider := vsphere.NewMgmtBootstrapCAPV(new(vsphere.MgmtBootstrapCAPV))
@@ -139,7 +145,6 @@ func runProvider() {
 		log.Error("error encountered during bootstrap")
 		log.Fatal(err.Error())
 	}
-
 
 	stop := time.Now()
 	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))

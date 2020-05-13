@@ -345,7 +345,8 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("%s/rancher", rVersion),
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
-		fmt.Sprintf("--set %s,%s", fmt.Sprintf("hostname=%s", c.Hostname), fmt.Sprintf("certmanager.version=%s", certManagerVersion)),
+		"--set",
+		fmt.Sprintf("%s,%s", fmt.Sprintf("hostname=%s", c.Hostname), fmt.Sprintf("certmanager.version=%s", certManagerVersion)),
 	}
 	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
