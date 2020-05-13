@@ -76,10 +76,12 @@ func logInit() {
 	log.SetOutput(os.Stdout)
 }
 
-func delay() {
+func delay(start time.Time) {
 	for x := 1; x <= 5; x++ {
 		time.Sleep(1 * time.Second)
 	}
+	stop := time.Now()
+	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
 }
 
 func runProvider() {
@@ -90,7 +92,8 @@ func runProvider() {
 
 	// TODO dont do this
 	// wait a few seconds for all events to come through before ending
-	defer delay()
+	start := time.Now()
+	defer delay(start)
 
 	if deploymentType == "capv" {
 		vsProvider := vsphere.NewMgmtBootstrapCAPV(new(vsphere.MgmtBootstrapCAPV))
@@ -122,7 +125,6 @@ func runProvider() {
 		bootstrap = vsProvider
 	}
 
-	start := time.Now()
 	log.Info("Welcome to Mission Control")
 	log.WithFields(log.Fields{
 		"ClusterName":              clusterName,
@@ -145,9 +147,6 @@ func runProvider() {
 		log.Error("error encountered during bootstrap")
 		log.Fatal(err.Error())
 	}
-
-	stop := time.Now()
-	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
 }
 
 func runEngine() {
@@ -158,6 +157,11 @@ func runEngine() {
 	var workerCount int
 	var logFile string
 	var engineName engine.Cluster
+
+	// TODO dont do this
+	// wait a few seconds for all events to come through before ending
+	start := time.Now()
+	defer delay(start)
 
 	if deploymentType == "capv" {
 		engine := capv.NewMgmtClusterCAPV()
@@ -228,7 +232,6 @@ func runEngine() {
 	mw := io.MultiWriter(os.Stdout, file)
 	log.SetOutput(mw)
 
-	start := time.Now()
 	log.Info("Welcome to Mission Control")
 	log.WithFields(log.Fields{
 		"ClusterName":              clusterName,
@@ -249,6 +252,4 @@ func runEngine() {
 	if err != nil {
 		log.Error(err.Error())
 	}
-	stop := time.Now()
-	log.Infof("missionDuration: %v", stop.Sub(start).Round(time.Second))
 }
