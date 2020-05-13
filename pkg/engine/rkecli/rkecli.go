@@ -19,11 +19,9 @@ import (
 )
 
 const (
-	defaultConfigPath = "/rke-config.yml"
-	defaultHostname   = "my.rancher.org"
-	//certManagerCRDURL  = "https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml"
-	certManagerCRDURL = "https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.crds.yaml"
-	//certManagerVersion = "v0.12.0"
+	defaultConfigPath  = "/rke-config.yml"
+	defaultHostname    = "my.rancher.org"
+	certManagerCRDURL  = "https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.crds.yaml"
 	certManagerVersion = "v0.15.0"
 )
 
