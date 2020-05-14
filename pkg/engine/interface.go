@@ -33,6 +33,7 @@ type Cluster interface {
 // MgmtCluster spec for the Engine
 type MgmtCluster struct {
 	LogFile                 string         `yaml:"LogFile" json:"logfile"`
+	LogDir                  string         `yaml:"LogDir" json:"logdir"`
 	SSH                     cluster.SSH    `yaml:"SSH" json:"ssh"`
 	Addons                  cluster.Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
 	cluster.K8sConfig       `yaml:",inline" json:",inline" mapstructure:",squash"`

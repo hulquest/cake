@@ -59,3 +59,20 @@ func ServeDuration() {
 		time.Sleep(1 * time.Hour)
 	}
 }
+
+func DownloadTxtFile(url string, downloadLocation string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed, %v", resp.StatusCode)
+	}
+	responseData, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	err = ioutil.WriteFile(downloadLocation, responseData, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}

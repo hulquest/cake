@@ -28,6 +28,7 @@ type Spec struct {
 	EventStream       progress.Events  `yaml:"-" json:"-" mapstructure:"-"`
 	EngineType        types.EngineType `yaml:"EngineType" json:"enginetype"`
 	LogFile           string           `yaml:"LogFile" json:"logfile"`
+	LogDir            string           `yaml:"LogDir" json:"logdir"`
 	SSH               cluster.SSH      `yaml:"SSH" json:"ssh"`
 	BootstrapperIP    string           `yaml:"-" json:"-" mapstructure:"-"`
 }

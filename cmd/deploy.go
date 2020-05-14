@@ -90,10 +90,12 @@ func runProvider() {
 	var workerCount int
 	var bootstrap provider.Bootstrapper
 
-	// TODO dont do this
-	// wait a few seconds for all events to come through before ending
+	// TODO better way to wait for any final events
+	// wait a few seconds for all events to come through before exiting
 	start := time.Now()
-	defer delay(start)
+	log.DeferExitHandler(func() {
+		delay(start)
+	})
 
 	if deploymentType == "capv" {
 		vsProvider := vsphere.NewMgmtBootstrapCAPV(new(vsphere.MgmtBootstrapCAPV))
@@ -158,10 +160,12 @@ func runEngine() {
 	var logFile string
 	var engineName engine.Cluster
 
-	// TODO dont do this
+	// TODO better way to wait for any final events
 	// wait a few seconds for all events to come through before ending
 	start := time.Now()
-	defer delay(start)
+	log.DeferExitHandler(func() {
+		delay(start)
+	})
 
 	if deploymentType == "capv" {
 		engine := capv.NewMgmtClusterCAPV()
@@ -198,6 +202,7 @@ func runEngine() {
 				log.Fatalf("unable to connect to events server: %v", err)
 			}
 			logFile = engine.LogFile
+			engine.LogDir = filepath.Join(cakeBaseDirPath(), clusterName)
 			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		} else {
@@ -214,6 +219,7 @@ func runEngine() {
 				log.Fatalf("unable to connect to events server: %v", err)
 			}
 			logFile = engine.LogFile
+			engine.LogDir = filepath.Join(cakeBaseDirPath(), clusterName)
 			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		}

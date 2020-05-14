@@ -11,6 +11,7 @@ import (
 	"github.com/vmware/govmomi/object"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"time"
 )
 
@@ -132,6 +133,8 @@ func (v *MgmtBootstrap) Progress() error {
 // Finalize handles saving deliverables and cleaning up the bootstrap VM
 func (v *MgmtBootstrap) Finalize() error {
 	var err error
+	// save log files to disk
+	progress.DownloadTxtFile("http://172.60.0.68:8081/logs", v.ClusterName)
 
 	return err
 }
@@ -151,4 +154,38 @@ func (tr *TrackedResources) addTrackedVM(resources map[string]*object.VirtualMac
 	for key, value := range resources {
 		tr.VMs[key] = value
 	}
+}
+
+func (v *MgmtBootstrap) createFolders() error {
+	desiredFolders := []string{
+		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
+		fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder),
+	}
+
+	for _, f := range desiredFolders {
+		tempFolder, err := v.Session.CreateVMFolders(f)
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
+	}
+
+	if v.Folder != "" {
+		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(fromConfig)
+		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
+		v.Session.Folder = fromConfig[filepath.Base(v.Folder)]
+	} else {
+		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
+		v.Folder = tempFolder[mgmtFolder].InventoryPath
+		v.Session.Folder = tempFolder[mgmtFolder]
+	}
+	return nil
 }
