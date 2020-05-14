@@ -37,8 +37,6 @@ type rkeConfigNode struct {
 }
 
 type rkeTaint struct {
-	Key       string         `json:"key,omitempty" yaml:"key"`
-	Value     string         `json:"value,omitempty" yaml:"value"`
+	Key   string `json:"key,omitempty" yaml:"key"`
+	Value string `json:"value,omitempty" yaml:"value"`
 }
-
-

@@ -21,8 +21,8 @@ import (
 const (
 	defaultConfigPath  = "/rke-config.yml"
 	defaultHostname    = "my.rancher.org"
-	certManagerCRDURL  = "https://raw.githubusercontent.com/jetstack/cert-manager/release-0.12/deploy/manifests/00-crds.yaml"
-	certManagerVersion = "v0.12.0"
+	certManagerCRDURL  = "https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.crds.yaml"
+	certManagerVersion = "v0.15.0"
 )
 
 // NewMgmtClusterCli creates a new cluster interface with a full config from the client
@@ -115,6 +115,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 		return fmt.Errorf("error unmarshaling RKE cluster config file: %s", err)
 	}
 
+	var sans []string
 	nodes := make([]*rkeConfigNode, 0)
 	for k, v := range c.Nodes {
 		node := &rkeConfigNode{
@@ -133,6 +134,7 @@ func (c *MgmtCluster) CreatePermanent() error {
 		}
 		if strings.HasPrefix(strings.ToLower(k), "controlplane") {
 			node.Role = append(node.Role, "controlplane")
+			sans = append(sans, v)
 		} else {
 			node.Role = append(node.Role, "worker")
 		}
@@ -155,6 +157,12 @@ func (c *MgmtCluster) CreatePermanent() error {
 
 	y["nodes"] = nodes
 	y["ssh_key_path"] = c.SSH.KeyPath
+	sans = append(sans, c.Hostname)
+	y["authentication"] = map[string]interface{}{
+		"sans":     sans,
+		"strategy": "x509",
+		"webhook":  nil,
+	}
 
 	clusterYML, err := yaml.Marshal(y)
 	if err != nil {
@@ -336,7 +344,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 		fmt.Sprintf("--namespace=%s", namespace),
 		fmt.Sprintf("--kubeconfig=%s", kubeConfigFile),
 		"--set",
-		fmt.Sprintf("hostname=%s", c.Hostname),
+		fmt.Sprintf("%s,%s", fmt.Sprintf("hostname=%s", c.Hostname), fmt.Sprintf("certmanager.version=%s", certManagerVersion)),
 	}
 	err = cmd.GenericExecute(nil, "helm", args, nil)
 	if err != nil {
