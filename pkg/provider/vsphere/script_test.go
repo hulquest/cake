@@ -17,7 +17,6 @@ func TestNewBoostrapBaseScript(t *testing.T) {
 	}
 }
 
-
 func TestNewNodeBaseScript(t *testing.T) {
 	lineTwo := "do this seconds"
 	v := newNodeBaseScript(rkePrereqs, "rke")
@@ -28,4 +27,3 @@ func TestNewNodeBaseScript(t *testing.T) {
 		t.Fatalf("expected: %s to contain: [%s, %s]", s, rkeBinaryInstall, lineTwo)
 	}
 }
-

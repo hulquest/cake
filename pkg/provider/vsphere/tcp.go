@@ -2,8 +2,8 @@ package vsphere
 
 import (
 	"bufio"
-	"fmt"
 	"errors"
+	"fmt"
 	"github.com/rakyll/statik/fs"
 	"io"
 	"net"
