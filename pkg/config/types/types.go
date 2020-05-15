@@ -8,6 +8,7 @@ type EngineType string
 
 // ConfigSpec holds information needed to register HCI with NKS
 type ConfigSpec struct {
+	ClusterName           string        `yaml:"ClusterName" json:"clusterName"`
 	Provider              string        `yaml:"Provider" json:"provider"`
 	VCenterURL            string        `yaml:"VCenterURL" json:"vcenterurl"`
 	VCenterUser           string        `yaml:"VCenterUser" json:"vcenteruser"`
@@ -21,7 +22,6 @@ type ConfigSpec struct {
 	WorkloadNetworkName   string        `yaml:"WorkloadNetworkName" json:"workloadnetworkname"`
 	StorageNetworkID      string        `yaml:"StorageNetworkID" json:"storagenetworkid"`
 	StorageNetworkName    string        `yaml:"StorageNetworkName" json:"storagenetworkname"`
-	RegionName            string        `yaml:"RegionName" json:"regionname"`
 	OrganizationID        string        `yaml:"OrganizationID" json:"organizationid"`
 	CloudCentralKey       string        `yaml:"CloudCentralKey" json:"cloudcentralkey"`
 	Solidfire             Solidfire     `yaml:"Solidfire,omitempty" json:"solidfire,omitempty"`
@@ -46,8 +46,8 @@ type Configuration struct {
 // ClusterSpec specifies the service cluster
 type ClusterSpec struct {
 	Name                  string `yaml:"Name,omitempty" json:"name,omitempty"`
-	MasterCount           int    `yaml:"MasterCount,omitempty" json:"mastercount,omitempty"`
-	MasterSize            string `yaml:"MasterSize,omitempty" json:"mastersize,omitempty"`
+	ControlPlaneNodeCount int    `yaml:"ControlPlaneNodeCount,omitempty" json:"controlplanenodecount,omitempty"`
+	ControlPlaneNodeSize  string `yaml:"ControlPlaneNodeSize,omitempty" json:"controlplanenodesize,omitempty"`
 	WorkerCount           int    `yaml:"WorkerCount,omitempty" json:"workercount,omitempty"`
 	WorkerSize            string `yaml:"WorkerSize,omitempty" json:"workersize,omitempty"`
 	KubernetesVersion     string `yaml:"KubernetesVersion,omitempty" json:"kubernetesversion,omitempty"`
@@ -57,7 +57,7 @@ type ClusterSpec struct {
 
 // NodeCount returns the total numbers of node in a cluster
 func (spec *ClusterSpec) NodeCount() int {
-	return spec.MasterCount + spec.WorkerCount
+	return spec.ControlPlaneNodeCount + spec.WorkerCount
 }
 
 // ComponentSpec sets versions for binaries and images that must be downloaded

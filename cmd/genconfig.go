@@ -79,6 +79,7 @@ func runEasyConfig() {
 	}
 	log.Infof("creating spec file based on user input: %s\n", clusterSpec)
 	var spec = &types.ConfigSpec{}
+	spec.ClusterName = clusterName
 	configure(spec)
 	writeSpec(spec)
 }

@@ -2,6 +2,7 @@ package vsphere
 
 import (
 	"fmt"
+	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/progress"
 	"github.com/netapp/cake/pkg/util/ssh"
 	"github.com/vmware/govmomi/object"
@@ -61,14 +62,14 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 	nodes := []cloneSpec{}
 	bootstrapNode := cloneSpec{
 		template:   ovas[v.OVA.NodeTemplate],
-		name:       fmt.Sprintf("%s1", rkeControlNodePrefix),
+		name:       fmt.Sprintf("%s-%s-1", v.ClusterName, config.ControlNode),
 		bootScript: bootstrapperScript.ToString(),
 		publicKey:  v.SSH.AuthorizedKeys,
 		osUser:     v.SSH.Username,
 	}
 	nodes = append(nodes, bootstrapNode)
 	for vm := 2; vm <= v.ControlPlaneCount; vm++ {
-		vmName := fmt.Sprintf("%s%v", rkeControlNodePrefix, vm)
+		vmName := fmt.Sprintf("%s-%s-%v", v.ClusterName, config.ControlNode, vm)
 		spec := cloneSpec{
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
@@ -79,7 +80,7 @@ func (v *MgmtBootstrapRKE) prepareRKE(configYAML []byte) error {
 		nodes = append(nodes, spec)
 	}
 	for vm := 1; vm <= v.WorkerCount; vm++ {
-		vmName := fmt.Sprintf("%s%v", rkeWorkerNodePrefix, vm)
+		vmName := fmt.Sprintf("%s-%s-%v", v.ClusterName, config.WorkerNode, vm)
 		spec := cloneSpec{
 			template:   ovas[v.OVA.NodeTemplate],
 			name:       vmName,
@@ -106,7 +107,7 @@ func (v *MgmtBootstrapRKE) Provision() error {
 		if err != nil {
 			return err
 		}
-		if name == fmt.Sprintf("%s1", rkeControlNodePrefix) {
+		if name == fmt.Sprintf("%s-%s-1", v.ClusterName, config.ControlNode) {
 			bootstrapVMIP = vmIP
 			v.BootstrapIP = vmIP
 			v.BootstrapperIP = vmIP

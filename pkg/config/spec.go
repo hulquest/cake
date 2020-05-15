@@ -14,6 +14,12 @@ const (
 	EngineCAPI      = types.EngineType("CAPV")
 )
 
+// Node Role Names
+const (
+	ControlNode = "controlplane"
+	WorkerNode  = "worker"
+)
+
 // Spec holds information needed to provision a K8s management cluster
 type Spec struct {
 	ProviderType types.ProviderType `yaml:"ProviderType" json:"providertype"`

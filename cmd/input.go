@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -25,7 +24,6 @@ const (
 	labelVCenterDatacenter            = "vSphere datacenter"
 	labelVCenterresourcepool          = "vSphere resourcepool"
 	labelVCenterDatastore             = "vSphere datastore"
-	labelCAPVRegionName               = "Region name"
 	labelCAPVManagementClusterNetwork = "Management Cluster Network"
 	labelCAPVWorkloadClusterNetwork   = "Workload Cluster Network"
 
@@ -210,12 +208,6 @@ func collectVsphereInformation(spec *types.ConfigSpec) error {
 	}
 
 	storageNetwork(spec, networklist)
-
-	if spec.RegionName == "" {
-		if spec.RegionName, err = getRegionName(); err != nil {
-			return fmt.Errorf("unable to get region name, %v", err)
-		}
-	}
 
 	return nil
 }
@@ -485,29 +477,6 @@ func getVCenterUsername(spec *types.ConfigSpec) error {
 	var err error
 	spec.VCenterUser, err = prompt.Run()
 	return err
-}
-
-func validateRegionName(r string) error {
-	reg, err := regexp.Compile("[^a-zA-Z0-9-_ ]+")
-	if err != nil {
-		return errors.New("Regex failed")
-	}
-
-	checker := reg.FindAllString(r, -1)
-	if len(checker) != 0 {
-		return fmt.Errorf("Region name contains unacceptable character(s): %s, (acceptable: ' ', '-','_')", strings.Join(checker, ","))
-	}
-
-	return nil
-}
-
-func getRegionName() (string, error) {
-	prompt := promptui.Prompt{
-		Label:    labelCAPVRegionName,
-		Validate: validateRegionName,
-	}
-
-	return prompt.Run()
 }
 
 func getServiceClusterPodCIDR(spec *types.ConfigSpec) {

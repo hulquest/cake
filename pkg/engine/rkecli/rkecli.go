@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/netapp/cake/pkg/config"
 	"github.com/netapp/cake/pkg/config/vsphere"
 	"github.com/netapp/cake/pkg/engine"
 	"github.com/netapp/cake/pkg/util/cmd"
@@ -132,11 +133,12 @@ func (c *MgmtCluster) CreatePermanent() error {
 			Labels:           make(map[string]string),
 			Taints:           make([]rkeTaint, 0),
 		}
-		if strings.HasPrefix(strings.ToLower(k), "controlplane") {
-			node.Role = append(node.Role, "controlplane")
+		masterPrefix := fmt.Sprintf("%s-%s", c.ClusterName, config.ControlNode)
+		if strings.HasPrefix(strings.ToLower(k), masterPrefix) {
+			node.Role = append(node.Role, config.ControlNode)
 			sans = append(sans, v)
 		} else {
-			node.Role = append(node.Role, "worker")
+			node.Role = append(node.Role, config.WorkerNode)
 		}
 		nodes = append(nodes, node)
 	}
@@ -388,7 +390,7 @@ func (c MgmtCluster) PivotControlPlane() error {
 
 	var workerNode string
 	for k, v := range c.Nodes {
-		if strings.HasPrefix(k, "worker") {
+		if strings.HasPrefix(k, config.WorkerNode) {
 			workerNode = v
 			break
 		}
