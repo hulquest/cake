@@ -93,6 +93,7 @@ func runProvider() {
 	// TODO better way to wait for any final events
 	// wait a few seconds for all events to come through before exiting
 	start := time.Now()
+	defer delay(start)
 	log.DeferExitHandler(func() {
 		delay(start)
 	})
@@ -163,6 +164,7 @@ func runEngine() {
 	// TODO better way to wait for any final events
 	// wait a few seconds for all events to come through before exiting
 	start := time.Now()
+	defer delay(start)
 	log.DeferExitHandler(func() {
 		delay(start)
 	})
