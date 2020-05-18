@@ -69,10 +69,15 @@ func (s *Session) CloneTemplate(template *object.VirtualMachine, name string, bo
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate user data, %v", err)
 	}
+	cloudinitMetaDataConfig, err := cloudinit.GenerateMetaData(name)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate metadata, %v", err)
+	}
 
 	spec := types.VirtualMachineCloneSpec{}
 	spec.Config = &types.VirtualMachineConfigSpec{}
-	spec.Config.ExtraConfig = cloudinitUserDataConfig
+	spec.Config.ExtraConfig = append(spec.Config.ExtraConfig, cloudinitUserDataConfig...)
+	spec.Config.ExtraConfig = append(spec.Config.ExtraConfig, cloudinitMetaDataConfig...)
 	/*
 		TODO make cpu and memory configurable
 		spec.Config.NumCPUs = int32

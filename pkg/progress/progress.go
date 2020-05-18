@@ -31,7 +31,7 @@ func init() {
 	responseBody.Messages = []string{}
 }
 
-func Serve(logfile string, kubeconfig string, port string, status Events) {
+func Serve(logfile string, kubeconfigfile string, port string, status Events) {
 	fn := func(p *StatusEvent) {
 		responseBody.Messages = append(responseBody.Messages, fmt.Sprintf("%v", p.String()))
 	}
@@ -44,8 +44,8 @@ func Serve(logfile string, kubeconfig string, port string, status Events) {
 		logs, _ := ioutil.ReadFile(logfile)
 		fmt.Fprintf(w, string(logs))
 	})
-	http.HandleFunc("/kubeconfig", func(w http.ResponseWriter, r *http.Request) {
-		kconfig, _ := ioutil.ReadFile(kubeconfig)
+	http.HandleFunc("/kubeconfigfile", func(w http.ResponseWriter, r *http.Request) {
+		kconfig, _ := ioutil.ReadFile(kubeconfigfile)
 		if len(kconfig) == 0 {
 			w.WriteHeader(http.StatusInternalServerError)
 		}

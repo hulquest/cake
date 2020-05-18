@@ -65,15 +65,6 @@ func init() {
 	deployCmd.MarkFlagRequired("deployment-type")
 	deployCmd.Flags().MarkHidden("progress")
 	rootCmd.AddCommand(deployCmd)
-	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		logInit()
-		return nil
-	}
-
-}
-
-func logInit() {
-	log.SetOutput(os.Stdout)
 }
 
 func delay(start time.Time) {
@@ -93,6 +84,7 @@ func runProvider() {
 	// TODO better way to wait for any final events
 	// wait a few seconds for all events to come through before exiting
 	start := time.Now()
+	defer delay(start)
 	log.DeferExitHandler(func() {
 		delay(start)
 	})
@@ -163,6 +155,7 @@ func runEngine() {
 	// TODO better way to wait for any final events
 	// wait a few seconds for all events to come through before ending
 	start := time.Now()
+	defer delay(start)
 	log.DeferExitHandler(func() {
 		delay(start)
 	})
