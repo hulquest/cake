@@ -12,7 +12,7 @@ import (
 // MetadataValues used
 type MetadataValues struct {
 	Hostname string
-	Networks []NetworkConfig
+	//Networks []NetworkConfig
 }
 
 // NetworkConfig values
@@ -45,7 +45,7 @@ func (e *Config) SetCloudInitMetadata(data []byte) error {
 
 // GetMetadata returns the metadata
 func GetMetadata(metadataValues *MetadataValues) ([]byte, error) {
-	textTemplate, err := template.New("f").Parse(metadataTemplatev1)
+	textTemplate, err := template.New("f").Parse(metadataTemplate)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse cloud init metadata template, %v", err)
 	}
@@ -57,6 +57,33 @@ func GetMetadata(metadataValues *MetadataValues) ([]byte, error) {
 
 	return returnScript.Bytes(), nil
 }
+
+// GenerateMetaData creates the meta data
+func GenerateMetaData(hostname string) (Config, error) {
+	// Create metadata
+	metadataValues := &MetadataValues{
+		Hostname: hostname,
+	}
+
+	metadata, err := GetMetadata(metadataValues)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get cloud metadata, %v", err)
+	}
+
+	var cloudinitMetaDataConfig Config
+
+	err = cloudinitMetaDataConfig.SetCloudInitMetadata(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("unable to set cloud init metadata in extra config, %v", err)
+	}
+
+	return cloudinitMetaDataConfig, nil
+}
+
+const metadataTemplate = `
+instance-id: "{{ .Hostname }}"
+local-hostname: "{{ .Hostname }}"
+`
 
 // NOTE: Debian 9 does not support v2 of cloud-init networking configuration, needs netplan.io. Using ENI configuration.
 const metadataTemplatev1 = `
