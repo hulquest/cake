@@ -11,6 +11,8 @@ import (
 	"github.com/vmware/govmomi/object"
 	"io/ioutil"
 	"net/http"
+	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -132,7 +134,34 @@ func (v *MgmtBootstrap) Progress() error {
 // Finalize handles saving deliverables and cleaning up the bootstrap VM
 func (v *MgmtBootstrap) Finalize() error {
 	var err error
+	url := fmt.Sprintf("http://%s:8081", v.BootstrapperIP)
+	downloadDir := v.LogDir
+	// save log file to disk
+	progress.DownloadTxtFile(fmt.Sprintf("%s%s", url, progress.URILogs), path.Join(downloadDir, v.ClusterName+".log"))
 
+	r, err := http.Get(fmt.Sprintf("%s%s", url, progress.URIDeliverable))
+	if err != nil {
+		return err
+	}
+	resp, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	var deliverables []progress.DeliverableInfo
+	json.Unmarshal(resp, &deliverables)
+	for _, elem := range deliverables {
+		name := fmt.Sprintf("%s%s", filepath.Base(elem.Url), elem.FileExt)
+		err := progress.DownloadTxtFile(fmt.Sprintf("%s%s", url, elem.Url), path.Join(downloadDir, name))
+		if err != nil {
+			return err
+		}
+	}
+
+	v.EventStream.Publish(&progress.StatusEvent{
+		Type:  "progress",
+		Msg:   fmt.Sprintf("all files from the cluster deployment can be found here: %s/", downloadDir),
+		Level: "info",
+	})
 	return err
 }
 
@@ -151,4 +180,38 @@ func (tr *TrackedResources) addTrackedVM(resources map[string]*object.VirtualMac
 	for key, value := range resources {
 		tr.VMs[key] = value
 	}
+}
+
+func (v *MgmtBootstrap) createFolders() error {
+	desiredFolders := []string{
+		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
+		fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder),
+	}
+
+	for _, f := range desiredFolders {
+		tempFolder, err := v.Session.CreateVMFolders(f)
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
+	}
+
+	if v.Folder != "" {
+		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(fromConfig)
+		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
+		v.Session.Folder = fromConfig[filepath.Base(v.Folder)]
+	} else {
+		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
+		if err != nil {
+			return err
+		}
+		v.TrackedResources.addTrackedFolder(tempFolder)
+		v.Folder = tempFolder[mgmtFolder].InventoryPath
+		v.Session.Folder = tempFolder[mgmtFolder]
+	}
+	return nil
 }

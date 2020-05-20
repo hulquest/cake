@@ -71,7 +71,7 @@ func (c *CommandSession) Execute() ([]byte, []byte, error) {
 	}
 	err = cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("Command timed out: %v %v", c.CommandLine.CommandName, strings.Join(c.CommandLine.Args, " "))
+		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("command timed out: %v %v", c.CommandLine.CommandName, strings.Join(c.CommandLine.Args, " "))
 	}
 	if err != nil {
 		return stdout.Bytes(), stderr.Bytes(), err

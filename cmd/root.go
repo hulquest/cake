@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 type settings struct {
@@ -51,10 +52,18 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster, if unspecified will auto generate a directory in ~/.cake/")
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		logInit()
+		return nil
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 	viper.SetEnvPrefix("cake")
+}
+
+func logInit() {
+	log.SetOutput(os.Stdout)
 }

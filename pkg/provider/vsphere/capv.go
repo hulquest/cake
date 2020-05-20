@@ -3,7 +3,6 @@ package vsphere
 import (
 	"fmt"
 	"github.com/netapp/cake/pkg/progress"
-	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -33,40 +32,6 @@ func (v *MgmtBootstrapCAPV) Prepare() error {
 	v.Prerequisites = prereqs
 
 	return v.MgmtBootstrap.prepare(configYAML)
-}
-
-func (v *MgmtBootstrap) createFolders() error {
-	desiredFolders := []string{
-		fmt.Sprintf("%s/%s", baseFolder, templatesFolder),
-		fmt.Sprintf("%s/%s", baseFolder, bootstrapFolder),
-	}
-
-	for _, f := range desiredFolders {
-		tempFolder, err := v.Session.CreateVMFolders(f)
-		if err != nil {
-			return err
-		}
-		v.TrackedResources.addTrackedFolder(tempFolder)
-	}
-
-	if v.Folder != "" {
-		fromConfig, err := v.Session.CreateVMFolders(v.Folder)
-		if err != nil {
-			return err
-		}
-		v.TrackedResources.addTrackedFolder(fromConfig)
-		v.Folder = fromConfig[filepath.Base(v.Folder)].InventoryPath
-		v.Session.Folder = fromConfig[filepath.Base(v.Folder)]
-	} else {
-		tempFolder, err := v.Session.CreateVMFolders(fmt.Sprintf("%s/%s", baseFolder, mgmtFolder))
-		if err != nil {
-			return err
-		}
-		v.TrackedResources.addTrackedFolder(tempFolder)
-		v.Folder = tempFolder[mgmtFolder].InventoryPath
-		v.Session.Folder = tempFolder[mgmtFolder]
-	}
-	return nil
 }
 
 // Prepare the environment for bootstrapping

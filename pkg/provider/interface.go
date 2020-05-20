@@ -14,9 +14,13 @@ type Bootstrapper interface {
 	Prepare() error
 	// Provision runs the management cluster creation steps
 	Provision() error
-	// Progress watches the cluster creation for progress
+	// Progress watches the cluster creation for progress. One node will make the following HTTP endpoints available. The progress method will read all progress events from /progress
+	// /progress - all events messages, overall complete status and overall success status
+	// /log - the stdout of all commands run
+	// /deliverable - is the URI discovery endpoint for all files that were created as part of the deploy
+	// /deliverable/<file_name> - engines will implement any number of endpoints here where the file_name is an engine specific file created during the deployment process
 	Progress() error
-	// Finalize saves any deliverables and removes any created bootstrap infrastructure
+	// Finalize saves in the .cake/<cluster-name>/ directory /log and all /deliverable/<file_name> files and removes any created bootstrap infrastructure
 	Finalize() error
 	// Events are status messages from the implementation
 	Events() progress.Events
@@ -28,6 +32,7 @@ type Spec struct {
 	EventStream       progress.Events  `yaml:"-" json:"-" mapstructure:"-"`
 	EngineType        types.EngineType `yaml:"EngineType" json:"enginetype"`
 	LogFile           string           `yaml:"LogFile" json:"logfile"`
+	LogDir            string           `yaml:"LogDir" json:"logdir"`
 	SSH               cluster.SSH      `yaml:"SSH" json:"ssh"`
 	BootstrapperIP    string           `yaml:"-" json:"-" mapstructure:"-"`
 }
@@ -49,6 +54,7 @@ func Run(b Bootstrapper) error {
 		Msg:   "Preparing environment",
 		Level: "info",
 	})
+	defer b.Finalize()
 	err = b.Prepare()
 	if err != nil {
 		return err
@@ -76,9 +82,6 @@ func Run(b Bootstrapper) error {
 		Msg:   "Finalizing",
 		Level: "info",
 	})
-	err = b.Finalize()
-	if err != nil {
-		return err
-	}
+
 	return nil
 }

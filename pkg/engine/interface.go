@@ -3,7 +3,7 @@ package engine
 import (
 	"fmt"
 	"github.com/netapp/cake/pkg/progress"
-	"path/filepath"
+	"net"
 	"strings"
 	"time"
 
@@ -33,11 +33,13 @@ type Cluster interface {
 // MgmtCluster spec for the Engine
 type MgmtCluster struct {
 	LogFile                 string         `yaml:"LogFile" json:"logfile"`
+	LogDir                  string         `yaml:"LogDir" json:"logdir"`
 	SSH                     cluster.SSH    `yaml:"SSH" json:"ssh"`
 	Addons                  cluster.Addons `yaml:"Addons,omitempty" json:"addons,omitempty"`
 	cluster.K8sConfig       `yaml:",inline" json:",inline" mapstructure:",squash"`
 	EventStream             progress.Events `yaml:"-" json:"-" mapstructure:"-"`
 	ProgressEndpointEnabled bool            `yaml:"-" json:"-" mapstructure:"-"`
+	FileDeliverables        []string
 }
 
 // Run provider bootstrap process
@@ -48,9 +50,10 @@ func Run(c Cluster) error {
 		defer progress.UpdateProgressComplete(true)
 		go progress.Serve(
 			spec.LogFile,
-			filepath.Join(filepath.Dir(spec.LogFile), "kubeconfig"),
+			getLocalIP(),
 			"8081",
 			c.Events(),
+			spec.FileDeliverables,
 		)
 	}
 	// TODO poll for the endpoints to be up or something similar before starting to send messages
@@ -91,4 +94,14 @@ func Run(c Cluster) error {
 	}
 
 	return nil
+}
+
+func getLocalIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "<worker_node_ip>"
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
 }

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -62,8 +63,7 @@ func fileExists(fn string) bool {
 }
 
 func initSpecDir() {
-	basePath := cakeBaseDirPath()
-	specPath = fmt.Sprintf("%s/%s", basePath, clusterName)
+	specPath = filepath.Join(cakeBaseDirPath(), clusterName)
 	if _, err := os.Stat(specPath); os.IsNotExist(err) {
 		log.Infof("creating config directory: %s\n", specPath)
 		os.MkdirAll(specPath, 0700)

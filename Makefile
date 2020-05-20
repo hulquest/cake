@@ -62,6 +62,11 @@ test: ## Test with go test
 	@echo "$$STATIK_FILE" > pkg/util/statik/statik.go
 	go test -v -covermode=count ./...
 
+.PHONY: integration
+integration: ## Integration tests with go test
+	@echo "$$STATIK_FILE" > pkg/util/statik/statik.go
+	go test -tags=integration -v -covermode=count ./...
+
 .PHONY: clean
 clean:  ## Clean up all the go modules
 	go clean -modcache -cache

@@ -65,15 +65,6 @@ func init() {
 	deployCmd.MarkFlagRequired("deployment-type")
 	deployCmd.Flags().MarkHidden("progress")
 	rootCmd.AddCommand(deployCmd)
-	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		logInit()
-		return nil
-	}
-
-}
-
-func logInit() {
-	log.SetOutput(os.Stdout)
 }
 
 func delay(start time.Time) {
@@ -107,6 +98,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
+		vsProvider.LogDir = specPath
 		vsProvider.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
 		if err != nil {
 			log.Fatalf("unable to connect to events server: %v", err)
@@ -121,6 +113,7 @@ func runProvider() {
 		clusterName = vsProvider.ClusterName
 		controlPlaneCount = vsProvider.ControlPlaneCount
 		workerCount = vsProvider.WorkerCount
+		vsProvider.LogDir = specPath
 		vsProvider.EventStream, err = progress.NewNatsPubSub(nats.DefaultURL, clusterName)
 		if err != nil {
 			log.Fatalf("unable to connect to events server: %v", err)
@@ -162,7 +155,7 @@ func runEngine() {
 	var engineName engine.Cluster
 
 	// TODO better way to wait for any final events
-	// wait a few seconds for all events to come through before exiting
+	// wait a few seconds for all events to come through before ending
 	start := time.Now()
 	defer delay(start)
 	log.DeferExitHandler(func() {
@@ -204,6 +197,7 @@ func runEngine() {
 				log.Fatalf("unable to connect to events server: %v", err)
 			}
 			logFile = engine.LogFile
+			engine.LogDir = filepath.Join(cakeBaseDirPath(), clusterName)
 			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		} else {
@@ -220,6 +214,7 @@ func runEngine() {
 				log.Fatalf("unable to connect to events server: %v", err)
 			}
 			logFile = engine.LogFile
+			engine.LogDir = filepath.Join(cakeBaseDirPath(), clusterName)
 			engine.ProgressEndpointEnabled = progressEndpointEnabled
 			engineName = engine
 		}

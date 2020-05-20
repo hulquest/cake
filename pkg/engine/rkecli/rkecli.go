@@ -90,6 +90,10 @@ func (c *MgmtCluster) InstallControlPlane() error {
 
 // Spec returns the Spec
 func (c *MgmtCluster) Spec() engine.MgmtCluster {
+	c.MgmtCluster.FileDeliverables = []string{
+		c.RKEConfigPath,
+		"/kube_config_rke-config.yml",
+	}
 	return c.MgmtCluster
 }
 
