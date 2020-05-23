@@ -583,28 +583,29 @@ func getPasswordInputWithLabel(label string) string {
 	return result
 }
 
+// NewGovmomiClient will create and return a new govmomi.Client type.
 func NewGovmomiClient(govusername string, govpassword string, govurl string) (*govmomi.Client, error) {
 	ctx := context.TODO()
 
-	nonAuthUrl, err := url.Parse(govurl)
+	nonAuthURL, err := url.Parse(govurl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse vCenter url, %v", err)
 	}
-	if !strings.HasSuffix(nonAuthUrl.Path, "sdk") {
-		nonAuthUrl.Path = nonAuthUrl.Path + "sdk"
+	if !strings.HasSuffix(nonAuthURL.Path, "sdk") {
+		nonAuthURL.Path = nonAuthURL.Path + "sdk"
 	}
-	authenticatedUrl, err := url.Parse(nonAuthUrl.String())
+	authenticatedURL, err := url.Parse(nonAuthURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse vCenter url, %v", err)
 	}
-	authenticatedUrl.User = url.UserPassword(govusername, govpassword)
+	authenticatedURL.User = url.UserPassword(govusername, govpassword)
 
-	client, err := govmomi.NewClient(ctx, nonAuthUrl, true) // insecure = true
+	client, err := govmomi.NewClient(ctx, nonAuthURL, true) // insecure = true
 	if err != nil {
 		return nil, fmt.Errorf("unable to get vSphere client, %v", err)
 	}
 
-	if err = client.Login(ctx, authenticatedUrl.User); err != nil {
+	if err = client.Login(ctx, authenticatedURL.User); err != nil {
 		return nil, fmt.Errorf("unable to login to vCenter, %v", err)
 	}
 

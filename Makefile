@@ -5,6 +5,8 @@ BIN_DIR := bin
 PLATFORMS := windows linux darwin
 OSFLAG := $(shell go env GOHOSTOS)
 GOPATH := $(shell go env GOPATH)
+PKG := "github.com/netapp/cake"
+PKG_LIST := $(shell go list ${PKG}/...)
 
 define STATIK_FILE
 package statik
@@ -82,3 +84,7 @@ verify-no-efiles:  ## Validate no e-files exist
 .PHONY: clean-rke
 clean-rke:  ## Remove RKE machines
 	hack/rke-cleanup.sh
+
+.PHONY: lint
+lint:  ## Run golint on the package.
+	@golint -set_exit_status ${PKG_LIST}

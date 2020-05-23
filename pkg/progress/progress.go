@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Constants block for endpoint names.
 const (
 	URIProgress    = "/progress"
 	URILogs        = "/log"
@@ -21,21 +22,25 @@ const (
 
 var responseBody *Status
 
+// Status is a struct to model progress.
 type Status struct {
 	Complete              bool     `json:"complete"`
 	CompletedSuccessfully bool     `json:"completedSuccessfully"`
 	Messages              []string `json:"messages"`
 }
 
+// DeliverableInfo is a stuct for 
 type DeliverableInfo struct {
-	Url     string `json:"url"`
+	URL     string `json:"url"`
 	FileExt string `json:"file_extension"`
 }
 
+// UpdateProgressComplete will complete progress update.
 func UpdateProgressComplete(complete bool) {
 	responseBody.Complete = complete
 }
 
+// UpdateProgressCompletedSuccessfully will finalize progress.
 func UpdateProgressCompletedSuccessfully(completedSuccessfully bool) {
 	responseBody.CompletedSuccessfully = completedSuccessfully
 }
@@ -45,6 +50,7 @@ func init() {
 	responseBody.Messages = []string{}
 }
 
+// Serve will start an http server to handle events as the deployment progresses.
 func Serve(logfile string, ip, port string, status Events, fileDeliverables []string) {
 	fullURL := url.URL{Scheme: "http", Host: ip + ":" + port, Path: ""}
 	fn := func(p *StatusEvent) {
@@ -97,12 +103,14 @@ func Serve(logfile string, ip, port string, status Events, fileDeliverables []st
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
+// ServeDuration will sleep for 25 hours?
 func ServeDuration() {
 	for x := 0; x <= 24; x++ {
 		time.Sleep(1 * time.Hour)
 	}
 }
 
+// DownloadTxtFile will download a text file from a URL to the download location.
 func DownloadTxtFile(url string, downloadLocation string) error {
 	resp, err := http.Get(url)
 	if err != nil {

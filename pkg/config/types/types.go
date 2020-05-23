@@ -97,21 +97,24 @@ type Solidfire struct {
 	Password string `yaml:"Password" json:"password"`
 }
 
-// IPAMProvider controls what IP address management provider will be used for the region
+// IPAMProvider controls what IP address management provider will be used for the region. Delete me...
 type IPAMProvider string
 
+// Constants for IPAM providers.  Delete me...
 const (
 	DHCP           IPAMProvider = "DHCP"
 	MNodeIPService IPAMProvider = "MNodeIPService"
 	Infoblox       IPAMProvider = "Infoblox"
 )
 
+// IPAMConfig is a type for IPAM configurations in the config file.  Delete me...
 type IPAMConfig struct {
 	Provider IPAMProvider   `yaml:"Provider" json:"provider"`
 	MNode    MNodeConfig    `yaml:"MNodeConfig,omitempty" json:"mnodeconfig,omitempty"`
 	Infoblox InfobloxConfig `yaml:"InfobloxConfig,omitempty" json:"infobloxconfig,omitempty"`
 }
 
+// MNodeConfig models the IP service of the HCI Management Node... Delete me...
 type MNodeConfig struct {
 	IP          string `yaml:"IP" json:"ip"`
 	Path        string `yaml:"Path" json:"path"`
@@ -121,6 +124,7 @@ type MNodeConfig struct {
 	TLSInsecure bool   `yaml:"TLSInsecure" json:"tlsinsecure"`
 }
 
+// InfobloxConfig is not used and should be deleted?
 type InfobloxConfig struct {
 	Host      string            `yaml:"Host" json:"host"`
 	Port      string            `yaml:"Port" json:"port"`
@@ -132,6 +136,7 @@ type InfobloxConfig struct {
 	Networks  []InfobloxNetwork `yaml:"Networks" json:"networks"`
 }
 
+// InfobloxNetwork is not used and should be deleted?
 type InfobloxNetwork struct {
 	NetworkCIDR   string   `yaml:"NetworkCIDR" json:"networkcidr"`
 	Gateway       string   `yaml:"Gateway" json:"gateway"`
@@ -143,11 +148,12 @@ type InfobloxNetwork struct {
 	HostDNSSuffix string   `yaml:"HostDNSSuffix" json:"hostdnssuffix"`
 }
 
+// ProxySettings is a struct to model internet proxy connection parameters.
 type ProxySettings struct {
 	Enable   bool   `yaml:"Enable" json:"enable"`
-	HostIp   string `yaml:"HostIP" json:"hostip"`
+	HostIP   string `yaml:"HostIP" json:"hostip"`
 	Port     int    `yaml:"Port" json:"port"`
-	SshPort  int    `yaml:"SSHPort" json:"sshport"`
+	SSHPort  int    `yaml:"SSHPort" json:"sshport"`
 	Username string `yaml:"Username" json:"username"`
 	Password string `yaml:"Password" json:"password"`
 }

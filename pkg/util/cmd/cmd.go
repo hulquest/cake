@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// TODO dont use a global var, add this to the ctx
 // FileLogLocation to which we write all cmd stdout, stderr
+// TODO: dont use a global var, add this to the ctx
 var FileLogLocation = "/dev/null"
 
 // Command interface execute a cli command and
