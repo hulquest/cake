@@ -86,7 +86,7 @@ func Serve(logfile string, ip, port string, status Events, fileDeliverables []st
 				fmt.Fprintf(w, string(file))
 			})
 			dv = append(dv, DeliverableInfo{
-				Url:     uri,
+				URL:     uri,
 				FileExt: filepath.Ext(elem),
 			})
 			fullURL.Path = uri

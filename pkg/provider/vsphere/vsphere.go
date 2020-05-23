@@ -150,8 +150,8 @@ func (v *MgmtBootstrap) Finalize() error {
 	var deliverables []progress.DeliverableInfo
 	json.Unmarshal(resp, &deliverables)
 	for _, elem := range deliverables {
-		name := fmt.Sprintf("%s%s", filepath.Base(elem.Url), elem.FileExt)
-		err := progress.DownloadTxtFile(fmt.Sprintf("%s%s", url, elem.Url), path.Join(downloadDir, name))
+		name := fmt.Sprintf("%s%s", filepath.Base(elem.URL), elem.FileExt)
+		err := progress.DownloadTxtFile(fmt.Sprintf("%s%s", url, elem.URL), path.Join(downloadDir, name))
 		if err != nil {
 			return err
 		}
